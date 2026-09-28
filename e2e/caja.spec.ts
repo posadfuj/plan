@@ -37,7 +37,11 @@ async function registerCustomer(page: Page, name: string) {
 }
 
 /** Navegador de la caja: mismo celular emulado, con cámara simulada que muestra `qrText`. */
-async function cashierBrowser(playwright: PlaywrightWorkerArgs['playwright'], qrText: string) {
+async function cashierBrowser(
+  playwright: PlaywrightWorkerArgs['playwright'],
+  qrText: string,
+  { throttle = true }: { throttle?: boolean } = {},
+) {
   // Ruta solo ASCII: Chromium no abre la cámara simulada si la ruta tiene tildes (p. ej. "límites").
   const video = join(tmpdir(), `aiment-camara-${test.info().project.name}-${Date.now()}.y4m`);
   await qrVideo(qrText, video);
@@ -61,6 +65,7 @@ async function cashierBrowser(playwright: PlaywrightWorkerArgs['playwright'], qr
     permissions: ['camera'],
   });
   const page = await context.newPage();
+  if (!throttle) return { browser, page };
   // Android de gama media: CPU 4× más lenta y red móvil.
   const cdp = await context.newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
@@ -202,7 +207,10 @@ test('sin internet la caja avisa y, al volver la señal, no duplica la suma', as
   await registerCustomer(page, 'Carmen Huamán');
   const cardUrl = page.url();
   const shortCode = (await page.getByTestId('short-code').textContent())!.trim();
-  const { browser, page: caja } = await cashierBrowser(playwright, await decodeQr(page.getByTestId('qr')));
+  // Sin la red móvil simulada: en Chromium reciente esa emulación (offline: false) anula el modo avión.
+  const { browser, page: caja } = await cashierBrowser(playwright, await decodeQr(page.getByTestId('qr')), {
+    throttle: false,
+  });
 
   try {
     const code = await pairingCodeFromDb('barberia', `Caja sin señal ${test.info().project.name}`);
@@ -216,11 +224,14 @@ test('sin internet la caja avisa y, al volver la señal, no duplica la suma', as
 
     // 1. Modo avión: franja roja, la suma falla con un mensaje claro y no se registra nada.
     await caja.context().setOffline(true);
+    // Además se corta la API a mano, para no depender de cómo cada versión de Chromium emula el modo avión.
+    await caja.route('**/v1/**', (route) => route.abort('internetdisconnected'));
     await expect(caja.getByTestId('offline-banner')).toBeVisible();
     await caja.getByTestId('earn').click();
     await expect(caja.getByText('Sin conexión. Revisa tu internet').first()).toBeVisible();
     await expect(caja.getByRole('button', { name: 'Reintentar (no se duplica)' })).toBeVisible();
     await shot(caja, '8-sin-conexion');
+    await caja.unroute('**/v1/**');
     await caja.context().setOffline(false);
     await expect(caja.getByTestId('offline-banner')).toBeHidden();
     await page.reload();
