@@ -21,6 +21,7 @@ const app = createApp({
       ...(env.RATE_LIMIT_REGISTER ? { register: env.RATE_LIMIT_REGISTER } : {}),
       ...(env.RATE_LIMIT_RECOVERY ? { recovery: env.RATE_LIMIT_RECOVERY } : {}),
       ...(env.RATE_LIMIT_REDEEM ? { redeem: env.RATE_LIMIT_REDEEM } : {}),
+      ...(env.RATE_LIMIT_DEVICE_PAIR ? { devicePair: env.RATE_LIMIT_DEVICE_PAIR } : {}),
     },
   },
   mailer: createMailerFromEnv(),

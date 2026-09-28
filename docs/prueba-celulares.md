@@ -1,4 +1,4 @@
-# Prueba en celulares reales (semana 3)
+# Prueba en celulares reales (semanas 3 y 4)
 
 Las pruebas automáticas emulan un Android (Pixel 7) y un iPhone (14) en Chromium. Esta lista es para confirmar lo mismo en **teléfonos reales**, con su cámara, su lector NFC y su navegador (Safari en iPhone, Chrome en Android).
 
@@ -13,23 +13,48 @@ pnpm local:tunnel       # abre un túnel HTTPS y muestra un QR en la terminal
 - Si `pnpm dev` está corriendo, detenlo antes: el túnel levanta la API y la PWA por su cuenta.
 - Los correos de recuperación llegan a Mailpit: <http://127.0.0.1:54324>.
 - Credenciales del panel (datos de prueba): `dueno.barberia@aiment.test` / `aiment-demo-2026`.
+- PIN de caja de los trabajadores del seed (Jhon, Mario): `2580`. PIN del dueño (autoriza excepciones): `1470`.
+- Necesitas **dos teléfonos**: uno hace de cliente y otro de caja (idealmente un Android de gama media como caja).
 
 ## Checklist
 
 Anota por cada teléfono: marca, modelo, gama, sistema y navegador.
 
-| #   | Paso                                                                                       | Resultado esperado                                                                                    | iPhone | Android medio | Android bajo |
-| --- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | ------ | ------------- | ------------ |
-| 1   | Escanear con la **cámara** el QR que muestra la terminal                                   | Se abre la landing de Barbería Pedro con la marca                                                     |        |               |              |
-| 2   | Registrarse (nombre, celular; correo opcional)                                             | Se abre la tarjeta con nombre, 0 de 10 sellos, próximo premio, QR y "Powered by Aiment Wallet"        |        |               |              |
-| 3   | Revisar que la tarjeta se lea bien en pantalla chica                                       | Nada cortado; botones grandes; el QR se ve nítido                                                     |        |               |              |
-| 4   | Con **otro** celular, escanear el QR de la tarjeta                                         | Solo dice "Presenta este código en caja de Barbería Pedro". **No** muestra nombre ni saldo            |        |               |              |
-| 5   | Volver a escanear el QR del local desde el primer celular                                  | Aparece "Ya tienes una tarjeta… Abrir mi tarjeta"                                                     |        |               |              |
-| 6   | Registrarse otra vez con el **mismo celular** (otro navegador)                             | Mensaje de tarjeta existente; **no** se crea otra                                                     |        |               |              |
-| 7   | Recuperar por correo (en un navegador en modo incógnito)                                   | Llega el correo a Mailpit; el enlace abre la **misma** tarjeta; un segundo uso dice "ya no es válido" |        |               |              |
-| 8   | Panel → buscar al cliente → "QR de recuperación" → escanearlo con el celular del cliente   | Abre la misma tarjeta; el QR sirve una sola vez                                                       |        |               |              |
-| 9   | **NFC:** grabar `…/go/BRB2K?c=n` en un tag de prueba (sin bloquearlo) y acercar el celular | Se abre la landing (en Android el NFC debe estar activado)                                            |        |               |              |
-| 10  | Datos móviles (sin Wi-Fi)                                                                  | Todo carga en unos pocos segundos                                                                     |        |               |              |
+| #   | Paso                                                                                       | Resultado esperado                                                                                                                                                               | iPhone | Android medio | Android bajo |
+| --- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------- | ------------ |
+| 1   | Escanear con la **cámara** el QR que muestra la terminal                                   | Se abre la landing de Barbería Pedro con la marca                                                                                                                                |        |               |              |
+| 2   | Registrarse (nombre, celular; correo opcional)                                             | Se abre la tarjeta con nombre, 0 de 10 sellos, próximo premio, QR y "Powered by Aiment Wallet"                                                                                   |        |               |              |
+| 3   | Revisar que la tarjeta se lea bien en pantalla chica                                       | Nada cortado; botones grandes; el QR se ve nítido                                                                                                                                |        |               |              |
+| 4   | Con **otro** celular, escanear el QR de la tarjeta                                         | Solo dice "Presenta este código en caja de Barbería Pedro". **No** muestra nombre ni saldo                                                                                       |        |               |              |
+| 5   | Volver a escanear el QR del local desde el primer celular                                  | Aparece "Ya tienes una tarjeta… Abrir mi tarjeta"                                                                                                                                |        |               |              |
+| 6   | Registrarse otra vez con el **mismo celular** (otro navegador)                             | Mensaje de tarjeta existente; **no** se crea otra                                                                                                                                |        |               |              |
+| 7   | Recuperar por correo (en un navegador en modo incógnito)                                   | Llega el correo a Mailpit; el enlace abre la **misma** tarjeta (con URL nueva); un segundo uso dice "ya no es válido"; en el primer navegador la URL vieja dice "ya no funciona" |        |               |              |
+| 8   | Panel → buscar al cliente → "QR de recuperación" → escanearlo con el celular del cliente   | Abre la misma tarjeta; el QR sirve una sola vez                                                                                                                                  |        |               |              |
+| 9   | **NFC:** grabar `…/go/BRB2K?c=n` en un tag de prueba (sin bloquearlo) y acercar el celular | Se abre la landing (en Android el NFC debe estar activado)                                                                                                                       |        |               |              |
+| 10  | Datos móviles (sin Wi-Fi)                                                                  | Todo carga en unos pocos segundos                                                                                                                                                |        |               |              |
+| 11  | Cumpleaños: escribir solo números (p. ej. 07031991)                                        | Se ve `07/03/1991` y se registra sin error                                                                                                                                       |        |               |              |
+| 12  | Botones de Apple/Google Wallet en la tarjeta                                               | Se ven desactivados con la etiqueta "Próximamente"                                                                                                                               |        |               |              |
+
+## Caja (semana 4)
+
+| #   | Paso                                                                                                 | Resultado esperado                                                           | iPhone | Android medio | Android bajo |
+| --- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------ | ------------- | ------------ |
+| C1  | En el celular de caja abrir `…/caja`                                                                 | "Este dispositivo todavía no está autorizado"                                |        |               |              |
+| C2  | Panel del dueño → Caja → nombre del dispositivo → **Generar QR**; escanearlo con el celular de caja  | "Quedó autorizado"; aparece "¿Quién atiende?"                                |        |               |              |
+| C3  | Escanear el **mismo** QR con otro teléfono                                                           | "Este QR de autorización ya no es válido"                                    |        |               |              |
+| C4  | Elegir "Jhon (caja)" y escribir un PIN equivocado 5 veces                                            | Avisa los intentos restantes y al 5.º bloquea 15 minutos                     |        |               |              |
+| C5  | Entrar con "Mario (caja)" y PIN `2580`                                                               | Pantalla con **ESCANEAR CLIENTE** grande                                     |        |               |              |
+| C6  | **ESCANEAR CLIENTE** y apuntar a la tarjeta del teléfono cliente (probar con poca luz y brillo bajo) | Pide permiso de cámara la 1.ª vez; abre la ficha del cliente en menos de 3 s |        |               |              |
+| C7  | **SUMAR VISITA**                                                                                     | "+1 sello"; al volver a la tarjeta del cliente se ve el sello                |        |               |              |
+| C8  | Sumar otra vez                                                                                       | "Este cliente ya sumó hace poco" → motivo + PIN del dueño `1470` → se suma   |        |               |              |
+| C9  | **Anular** el último movimiento (elegir un motivo)                                                   | "Anulado"; el saldo vuelve atrás                                             |        |               |              |
+| C10 | Buscar al cliente por celular y por el código de 6 letras de su tarjeta                              | Abre la misma ficha                                                          |        |               |              |
+| C11 | "El cliente perdió su tarjeta: QR de recuperación" y escanearlo con un tercer navegador del cliente  | Abre la tarjeta; en el celular anterior la URL vieja dice "ya no funciona"   |        |               |              |
+| C12 | Panel → Caja → **Revocar** el dispositivo                                                            | La caja vuelve a "no está autorizado" en la siguiente acción                 |        |               |              |
+| C13 | Medir con un cronómetro: escanear → sumar → confirmación                                             | Menos de 5 s por operación                                                   |        |               |              |
+| C14 | Usar la caja con una sola mano (pulgar)                                                              | Todos los botones se alcanzan y se presionan sin errores                     |        |               |              |
+
+**Importante:** la cámara del navegador solo funciona por `https://` (el túnel) o en `localhost`. Si abres la caja por la IP de la laptop en el Wi-Fi (`http://192.168…`), la cámara no abrirá: usa el túnel o la búsqueda por celular.
 
 ## Qué NO hacer en esta prueba
 

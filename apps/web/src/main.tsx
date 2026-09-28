@@ -29,6 +29,17 @@ const routeTree = rootRoute.addChildren([
     path: '/panel',
     component: lazyRouteComponent(() => import('./routes/panel'), 'PanelPage'),
   }),
+  // La caja (escáner con cámara y lector QR de respaldo) también se descarga solo al abrirla.
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/caja',
+    component: lazyRouteComponent(() => import('./routes/caja'), 'CajaPage'),
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/caja/vincular/$code',
+    component: lazyRouteComponent(() => import('./routes/caja'), 'PairDevicePage'),
+  }),
   createRoute({ getParentRoute: () => rootRoute, path: '/enlace-no-disponible', component: UnavailablePage }),
 ]);
 

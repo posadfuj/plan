@@ -12,7 +12,7 @@ const shots = (page: Page, name: string) =>
 
 async function register(
   page: Page,
-  data: { name: string; phone: string; email?: string },
+  data: { name: string; phone: string; email?: string; birthday?: string },
   channel: 'q' | 'n' = 'q',
 ) {
   await page.goto(`/go/${LINK}?c=${channel}`);
@@ -21,6 +21,7 @@ async function register(
   await page.getByLabel('Nombre y apellido', { exact: true }).fill(data.name);
   await page.getByLabel('Celular', { exact: true }).fill(data.phone);
   if (data.email) await page.getByLabel('Correo (opcional)').fill(data.email);
+  if (data.birthday) await page.getByLabel('Cumpleaños (opcional)').pressSequentially(data.birthday);
   await page.getByRole('checkbox').first().check();
 }
 
@@ -29,7 +30,10 @@ test('registro desde el QR del local hasta la tarjeta web con QR individual', as
   await register(page, {
     name: 'Valeria Torres',
     phone: `${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(6)}`,
+    birthday: '07031991', // se escriben solo números; la pantalla pone las barras
   });
+  await expect(page.getByLabel('Cumpleaños (opcional)')).toHaveValue('07/03/1991');
+  await expect(page.getByLabel('Cumpleaños (opcional)')).toHaveAttribute('placeholder', 'dd/mm/aaaa');
   await shots(page, '1-landing');
   await page.getByRole('button', { name: 'Crear mi tarjeta' }).click();
 
@@ -43,8 +47,9 @@ test('registro desde el QR del local hasta la tarjeta web con QR individual', as
   await expect(page.getByTestId('next-reward')).toContainText('Corte gratis');
   await expect(page.getByTestId('short-code')).toHaveText(/^[23456789A-Z]{6}$/);
   await expect(page.getByTestId('powered-by')).toContainText('Powered by Aiment Wallet');
-  await expect(page.getByRole('button', { name: 'Agregar a Apple Wallet' })).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Agregar a Google Wallet' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Agregar a Apple Wallet/ })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Agregar a Google Wallet/ })).toBeDisabled();
+  await expect(page.getByTestId('wallet-buttons').getByText('Próximamente', { exact: true })).toHaveCount(2);
   await shots(page, '2-tarjeta');
 
   // El QR que ve la caja (leído desde la pantalla, como una cámara)
@@ -127,8 +132,14 @@ test('recuperar la tarjeta por correo en un celular nuevo (enlace de un solo uso
   expect(text).not.toContain(cardUrl.split('/m/')[1]);
   const path = new URL(link).pathname;
   await phone2.goto(path);
-  await expect(phone2).toHaveURL(new URL(cardUrl).pathname);
+  // La misma tarjeta, con una URL nueva (se rota al recuperar).
+  await expect(phone2).toHaveURL(/\/m\/[0-9A-Za-z]{22}$/);
+  expect(new URL(phone2.url()).pathname).not.toBe(new URL(cardUrl).pathname);
   await expect(phone2.getByTestId('customer-name')).toHaveText('Camila Paredes');
+
+  // La URL anterior deja de abrir la tarjeta (p. ej. el celular perdido).
+  await page.reload();
+  await expect(page.getByText('Este enlace de tarjeta ya no funciona')).toBeVisible();
 
   // El mismo enlace ya no sirve
   const ctx3 = await browser.newContext();
@@ -172,7 +183,9 @@ test('recuperar en el local: el dueño muestra un QR y el cliente lo escanea', a
   const clientCtx = await browser.newContext();
   const client = await clientCtx.newPage();
   await client.goto(new URL(url).pathname);
-  await expect(client).toHaveURL(cardPath);
+  await expect(client).toHaveURL(/\/m\/[0-9A-Za-z]{22}$/);
+  expect(new URL(client.url()).pathname).not.toBe(cardPath); // URL nueva
+  await expect(client.getByTestId('customer-name')).toHaveText('Luis Mendoza');
   await ownerCtx.close();
   await clientCtx.close();
 });

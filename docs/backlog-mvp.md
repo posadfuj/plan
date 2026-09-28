@@ -83,27 +83,29 @@ Estado: **cerrada** (salvo la prueba en celulares reales). Detalle en [`semana-3
 
 **Demostrable:** `pnpm demo` → 8/8 en celulares emulados.
 
-## Semana 4: Modo trabajador
+## Semana 4: Modo trabajador ✔
 
-Arrastrado: mensaje de anulación (deuda #2), permiso de recuperación en caja para el trabajador (ya existe; falta su login con PIN).
+Estado: **cerrada** (salvo la prueba en celulares reales). Detalle en [`semana-4-reporte.md`](./semana-4-reporte.md).
 
-- [ ] Autorización de dispositivo (QR de 10 min → cookie) y revocación.
-- [ ] Trabajadores con PIN; login en caja (nombre + PIN), bloqueo por intentos, sesión de 12 h y "Cerrar turno".
-- [ ] Caja: **ESCANEAR CLIENTE** (`BarcodeDetector` con respaldo `zxing-wasm`), búsqueda por celular o código y ficha del cliente.
-- [ ] Sumar (con importe en modo puntos), canjear, anular el último movimiento (15 min, con motivo) y override de límites con PIN del dueño.
-- [ ] QR de recuperación en caja (un solo uso, 10 min).
-- [ ] Bono de bienvenida en la 1.ª visita validada.
-- [ ] UX: botones de al menos 56 px, uso con una mano y menos de 5 s por operación en un Android de gama media.
+- [x] Autorización de dispositivo (QR de 10 min → cookie) y revocación.
+- [x] Trabajadores con PIN; login en caja (nombre + PIN), bloqueo por intentos, sesión de 12 h y "Cerrar turno".
+- [x] Caja: **ESCANEAR CLIENTE** (`BarcodeDetector` con respaldo `zxing-wasm`), búsqueda por celular o código y ficha del cliente.
+- [x] Sumar (con importe en modo puntos), canjear, anular el último movimiento (15 min, con motivo) y override de límites con PIN del dueño.
+- [x] QR de recuperación en caja (un solo uso, 10 min).
+- [x] Bono de bienvenida en la 1.ª visita validada.
+- [x] UX: botones de al menos 56 px, uso con una mano y menos de 5 s por operación (medido con CPU 4× más lenta y red móvil).
+- [x] Pedidos al aprobar la semana 3: cumpleaños dd/mm/aaaa, Wallet "Próximamente", URL de la tarjeta con hash y rotación ([ADR 0002](./decisiones/0002-token-de-tarjeta-con-hash.md)), límites con IP compartida ([ADR 0003](./decisiones/0003-limites-de-intentos.md)).
+- [ ] **Flujo de caja desde un celular real:** pendiente del fundador (el entorno de la sesión bloquea el túnel).
 
-**Demostrable:** el flujo completo de caja funciona en local desde un celular real.
+**Demostrable:** `pnpm demo` → 14/14 en celulares emulados (caja con cámara simulada + flujo del cliente).
 
 ## Semana 5: Panel del dueño y superadmin
 
 - [ ] Marca: logo (subida a MinIO), colores con chequeo de contraste, textos, condiciones y contacto.
 - [ ] Programa: plantillas por rubro como presets editables; regla, meta, premios, bienvenida, límites y expiración (desactivada).
 - [ ] Vista previa de la tarjeta web.
-- [ ] Clientes: lista, búsqueda, ficha, ajuste con motivo, bloqueo, rotación del `web_card_token` y baja (anonimización).
-- [ ] Trabajadores y dispositivos.
+- [ ] Clientes: lista, búsqueda, ficha, ajuste con motivo, bloqueo, rotación de la URL de la tarjeta (ya existe al recuperar) y baja (anonimización).
+- [ ] Trabajadores y dispositivos (pantalla completa; la API y una sección mínima existen desde la semana 4), sucursal por trabajador y tope de trabajadores del plan.
 - [ ] Superadmin: crear negocio (+ sucursal + invitación al dueño), estados `draft → live → suspended`, uso y auditoría.
 
 **Demostrable:** se configura un negocio ficticio nuevo, de cero a su primera tarjeta, **sin tocar código**, en menos de 15 minutos.

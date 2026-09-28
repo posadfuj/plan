@@ -58,6 +58,7 @@ export const apiEnvSchema = dbEnvSchema.extend(authEnvSchema.shape).extend({
   RATE_LIMIT_REGISTER: z.coerce.number().int().positive().optional(),
   RATE_LIMIT_RECOVERY: z.coerce.number().int().positive().optional(),
   RATE_LIMIT_REDEEM: z.coerce.number().int().positive().optional(),
+  RATE_LIMIT_DEVICE_PAIR: z.coerce.number().int().positive().optional(),
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

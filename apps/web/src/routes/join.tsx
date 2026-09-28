@@ -14,6 +14,14 @@ function benefit(info: JoinInfo): string {
     : `Acumula ${p.unitLabel} con cada compra.`;
 }
 
+/** Formatea mientras se escribe: solo números, con las barras de dd/mm/aaaa. */
+export function formatBirthday(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+}
+
 export function JoinPage() {
   const { code } = useParams({ strict: false }) as { code: string };
   const search = useSearch({ strict: false }) as { c?: string; v?: number | string };
@@ -23,6 +31,7 @@ export function JoinPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+  const [birthday, setBirthday] = useState('');
 
   useEffect(() => {
     api<JoinInfo>(`/v1/public/join/${encodeURIComponent(code)}`)
@@ -55,7 +64,7 @@ export function JoinPage() {
           fullName: String(f.get('fullName') ?? ''),
           phone: String(f.get('phone') ?? ''),
           email: String(f.get('email') ?? ''),
-          birthDate: String(f.get('birthDate') ?? ''),
+          birthDate: birthday,
           acceptTerms: accepted,
           acceptPrivacy: accepted,
           acceptMarketing: f.get('marketing') === 'on',
@@ -137,7 +146,13 @@ export function JoinPage() {
           <span className="text-sm font-medium">Cumpleaños (opcional)</span>
           <input
             name="birthDate"
-            type="date"
+            type="text"
+            inputMode="numeric"
+            autoComplete="bday"
+            placeholder="dd/mm/aaaa"
+            maxLength={10}
+            value={birthday}
+            onChange={(e) => setBirthday(formatBirthday(e.target.value))}
             className="mt-1 h-12 w-full rounded-xl border border-gray-300 bg-white px-3 text-base"
           />
           <span className="mt-1 block text-xs text-gray-500">

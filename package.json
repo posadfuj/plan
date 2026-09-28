@@ -17,7 +17,7 @@
     "db:seed": "pnpm --filter @aiment/db seed",
     "db:reset": "pnpm --filter @aiment/db reset",
     "db:generate": "pnpm --filter @aiment/db generate",
-    "demo": "tsx scripts/demo-semana-3.ts",
+    "demo": "tsx scripts/demo-semana-4.ts",
     "wallet:google-demo": "pnpm --filter @aiment/wallet google-demo",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -28,6 +28,7 @@
     "db:check": "pnpm --filter @aiment/db exec drizzle-kit generate --name drift-check && git diff --exit-code --stat -- packages/db/migrations && test -z \"$(git status --porcelain -- packages/db/migrations)\"",
     "demo:semana-1": "tsx scripts/demo-semana-1.ts",
     "demo:semana-2": "tsx scripts/demo-semana-2.ts",
+    "demo:semana-3": "tsx scripts/demo-semana-3.ts",
     "local:tunnel": "tsx scripts/tunnel.ts",
     "e2e": "playwright test -c e2e/playwright.config.ts"
   },

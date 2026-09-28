@@ -33,3 +33,9 @@ export function forgetCard(orgId: string) {
     /* sin almacenamiento */
   }
 }
+
+/** Olvida una tarjeta por su token (p. ej. si se rotó al recuperarla en otro dispositivo). */
+export function forgetToken(token: string) {
+  const all = read();
+  for (const [orgId, t] of Object.entries(all)) if (t === token) forgetCard(orgId);
+}

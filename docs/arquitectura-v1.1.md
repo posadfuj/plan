@@ -160,7 +160,7 @@ Cerrada en la semana 1. La comparación completa está en [ADR 0001](./decisione
 
 > **Implementado en la semana 2** (`packages/core/src/loyalty`, `packages/ledger`). Precisiones respecto a lo descrito abajo:
 >
-> - Rutas actuales (dueño/admin): `POST /v1/orgs/:orgId/memberships/:membershipId/{earn,redeem,adjust}`, `POST /v1/orgs/:orgId/ledger/:entryId/void` y `POST /v1/orgs/:orgId/redemptions/:redemptionId/void`. Las de caja (`/v1/staff/...` por `scanToken`) llegan en la semana 4 sobre el mismo servicio.
+> - Rutas actuales (dueño/admin): `POST /v1/orgs/:orgId/memberships/:membershipId/{earn,redeem,adjust}`, `POST /v1/orgs/:orgId/ledger/:entryId/void` y `POST /v1/orgs/:orgId/redemptions/:redemptionId/void`. Las de caja (semana 4) usan el mismo servicio: `GET /v1/staff/scan/:scanToken` abre la ficha y las operaciones van por `membershipId` (`/v1/staff/memberships/:membershipId/{earn,redeem,recovery}`, `/v1/staff/ledger/:entryId/void`, `/v1/staff/redemptions/:redemptionId/void`); el negocio sale siempre del dispositivo.
 > - El tope diario (`staff_daily_units`) aplica solo a trabajadores; el cooldown aplica a todos.
 > - `caused_by_entry_id` vincula una suma con la conversión o el bono que generó; al anularla se revierten juntos.
 > - Wallet: una cola por proveedor (`wallet.sync.google` / `wallet.sync.apple`).
@@ -349,10 +349,12 @@ Cada ejecución queda en `automation_runs` con una clave de idempotencia. `birth
 
 HTTPS en todo lo publicado (HSTS), CORS restringido, CSP estricta y tokens de 128 bits en base62. Rate limits:
 
-- registro: 5 por IP cada 10 minutos;
-- PIN: 5 intentos;
+- registro: 30 por IP y 3 por celular y negocio cada 10 minutos (IP compartida / CGNAT: ver [ADR 0003](./decisiones/0003-limites-de-intentos.md));
+- PIN: 5 intentos por persona (bloqueo de 15 min) y 20 por dispositivo cada 10 minutos;
 - búsqueda: 30 por minuto y por dispositivo;
-- recuperación: 3 por hora.
+- recuperación: 20 por IP y 3 por contacto cada 10 minutos, y 3 correos por hora por cliente.
+
+La URL de la tarjeta se guarda solo como hash y se rota al recuperar ([ADR 0002](./decisiones/0002-token-de-tarjeta-con-hash.md)).
 
 Logs sin tokens ni datos personales, `pnpm audit` y escaneo de secretos en CI.
 

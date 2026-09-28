@@ -2,7 +2,7 @@ import { useParams } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { api, type ApiError, type Card } from '../api';
 import { Alert, BrandHeader, Page, PoweredBy, QrImage, Spinner } from '../components/ui';
-import { rememberCard } from '../storage';
+import { forgetToken, rememberCard } from '../storage';
 
 const LABELS: Record<string, string> = {
   earn: 'Visita / compra',
@@ -27,6 +27,22 @@ function Stamps({ current, target, color }: { current: number; target: number; c
   );
 }
 
+/** Botón de Wallet desactivado, con "Próximamente" visible (no solo al pasar el mouse). */
+function WalletSoon({ label, className }: { label: string; className: string }) {
+  return (
+    <button
+      disabled
+      aria-disabled
+      className={`flex min-h-14 flex-col items-center justify-center rounded-xl px-3 text-white opacity-60 ${className}`}
+    >
+      <span className="text-sm font-semibold">Agregar a {label}</span>
+      <span className="mt-0.5 rounded-full bg-white/25 px-2 text-[11px] font-semibold uppercase tracking-wide">
+        Próximamente
+      </span>
+    </button>
+  );
+}
+
 export function CardPage() {
   const { token } = useParams({ strict: false }) as { token: string };
   const [card, setCard] = useState<Card | null>(null);
@@ -41,9 +57,16 @@ export function CardPage() {
           setCard(c);
           rememberCard(c.organization.id, token);
         })
-        .catch(
-          (e: ApiError) => alive && setError(e.status === 404 ? 'No encontramos esta tarjeta.' : e.message),
-        );
+        .catch((e: ApiError) => {
+          if (!alive) return;
+          if (e.status === 404) {
+            // La URL pudo quedar vieja: al recuperar la tarjeta en otro celular se genera una nueva.
+            forgetToken(token);
+            setError(
+              'Este enlace de tarjeta ya no funciona. Si recuperaste tu tarjeta en otro celular, usa el enlace nuevo; si no, pídela en caja o con tu correo desde el QR del local.',
+            );
+          } else setError(e.message);
+        });
     void load();
     const onFocus = () => void load(); // al volver a la pestaña, saldo actualizado
     window.addEventListener('focus', onFocus);
@@ -131,23 +154,11 @@ export function CardPage() {
         <p className="text-xs text-gray-500">Si la cámara falla, dicta este código.</p>
       </section>
 
-      <section className="mt-4 grid grid-cols-2 gap-3">
-        <button
-          disabled
-          className="min-h-12 rounded-xl bg-black px-3 text-sm font-semibold text-white opacity-40"
-          title="Próximamente"
-        >
-          Agregar a Apple Wallet
-        </button>
-        <button
-          disabled
-          className="min-h-12 rounded-xl bg-gray-800 px-3 text-sm font-semibold text-white opacity-40"
-          title="Próximamente"
-        >
-          Agregar a Google Wallet
-        </button>
-        <p className="col-span-2 -mt-1 text-center text-xs text-gray-400">
-          Wallet: próximamente. Esta tarjeta web funciona siempre.
+      <section className="mt-4 grid grid-cols-2 gap-3" data-testid="wallet-buttons">
+        <WalletSoon label="Apple Wallet" className="bg-black" />
+        <WalletSoon label="Google Wallet" className="bg-gray-800" />
+        <p className="col-span-2 -mt-1 text-center text-xs text-gray-500">
+          Muy pronto podrás guardarla en tu Wallet. Esta tarjeta web funciona siempre.
         </p>
       </section>
 
