@@ -75,7 +75,7 @@ Meta: menos de 5 s por operación. La prueba falla si alguna la supera. Falta co
 | Excepciones                | Solo con PIN del dueño o de un admin (el PIN de un trabajador no sirve), con motivo y auditadas con quién autorizó y desde qué dispositivo                                                                     |
 | Idempotencia               | Un reintento por mala señal con la misma clave no duplica la suma                                                                                                                                              |
 
-**CI:** se completa al subir (ver sección 6).
+**CI:** verde en GitHub Actions ([run #10](https://github.com/posadfuj/plan/actions/runs/36395967527)): lint, tipos, migraciones, 182 tests, E2E (en CI se omiten los 2 casos que necesitan Supabase Auth; pasan en local) y gitleaks. El primer intento (run #9) falló en un test del Wallet por el orden de las suites; está en la sección 5.
 
 ## 3. Prueba en celulares reales
 

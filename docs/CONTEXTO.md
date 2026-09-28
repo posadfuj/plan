@@ -6,7 +6,7 @@
 
 - Rama de trabajo: `claude/loyalty-platform-technical-review-0qpg4x`.
 - **Semanas 1, 2 y 3 aprobadas** por el fundador. **Semana 4 (caja con PIN y dispositivo autorizado) entregada**, pendiente de su revisión. Próxima: **semana 5 (panel del dueño y superadmin)**.
-- Pruebas: 182 tests + 14 E2E (Android e iPhone emulados).
+- Pruebas: 182 tests + 14 E2E (Android e iPhone emulados). CI verde (run #10).
 
 ## Decisiones cerradas (no reabrir)
 
