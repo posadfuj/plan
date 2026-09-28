@@ -49,6 +49,11 @@ export const apiEnvSchema = dbEnvSchema.extend(authEnvSchema.shape).extend({
   /** true solo detrás de un proxy o túnel de confianza (Vite dev, Cloudflare). */
   TRUST_PROXY: bool,
   VISITOR_HASH_SALT: z.string().min(16).optional(),
+  /** Cookies de caja con Secure. Vacío = automático (true si PUBLIC_BASE_URL es https). */
+  SECURE_COOKIES: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === 'true')),
   /** Límites por IP (ver apps/api/src/rate-limit.ts). Vacíos = valores de producción. */
   RATE_LIMIT_REGISTER: z.coerce.number().int().positive().optional(),
   RATE_LIMIT_RECOVERY: z.coerce.number().int().positive().optional(),

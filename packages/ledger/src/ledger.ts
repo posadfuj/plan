@@ -432,7 +432,7 @@ async function withRetryOnConflict<T>(fn: () => Promise<T>): Promise<T> {
 export interface EarnInput {
   membershipId: string;
   amount?: number | string | null;
-  /** Solo dueño/admin (o trabajador con PIN del dueño, semana 4): permite superar un límite, queda auditado. */
+  /** Solo dueño/admin (o el trabajador con el PIN del dueño en caja): permite superar un límite, queda auditado. */
   overrideReason?: string | null;
   operator: Operator;
   idempotencyKey: string;
@@ -562,6 +562,8 @@ export async function earn(db: Db, orgId: string, input: EarnInput): Promise<Ope
         await audit(tx, orgId, input.operator, 'limits.overridden', 'ledger_entry', earnEntry.id, {
           violations: violations.map((v) => v.code),
           reason: override,
+          ...(input.operator.overrideApprovedBy ? { approvedBy: input.operator.overrideApprovedBy } : {}),
+          ...(input.operator.deviceId ? { deviceId: input.operator.deviceId } : {}),
         });
 
       return {
@@ -875,6 +877,19 @@ export async function voidEntry(db: Db, orgId: string, input: VoidInput): Promis
             notReversed(),
           ),
         );
+      const [later] = await tx
+        .select({ n: sql<number>`count(*)::int` })
+        .from(ledgerEntries)
+        .where(
+          and(
+            eq(ledgerEntries.organizationId, orgId),
+            eq(ledgerEntries.membershipId, ctx.membership.id),
+            eq(ledgerEntries.kind, 'convert'),
+            sql`${ledgerEntries.createdAt} > ${target.createdAt.toISOString()}::timestamptz`,
+            sql`${ledgerEntries.causedByEntryId} is distinct from ${target.id}::uuid`,
+            notReversed(),
+          ),
+        );
       const rewardSources = [target.id, ...effects.map((e) => e.id)];
       const affectedRewards = await tx
         .select({ id: earnedRewards.id, status: earnedRewards.status })
@@ -901,6 +916,7 @@ export async function voidEntry(db: Db, orgId: string, input: VoidInput): Promis
           delta: effects.reduce((s, e) => s + e.delta, 0),
           redeemedRewards: affectedRewards.filter((r) => r.status === 'redeemed').length,
         },
+        laterGoalConversions: later?.n ?? 0,
         balance: ctx.membership.balance,
         reason: input.reason,
         now,

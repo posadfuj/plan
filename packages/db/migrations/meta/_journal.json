@@ -36,6 +36,13 @@
       "when": 1790578055887,
       "tag": "0004_card_recovery_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790580376923,
+      "tag": "0005_caja_y_token_hash",
+      "breakpoints": true
     }
   ]
 }

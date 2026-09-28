@@ -162,6 +162,11 @@ export interface VoidInput {
   actor: { id: string; canVoidAny: boolean; isLatestOwnEntry: boolean };
   /** Efectos que generó el movimiento (conversiones de meta, bono) y deben revertirse con él. */
   sideEffects: { delta: number; redeemedRewards: number };
+  /**
+   * Conversiones de meta posteriores a este movimiento que siguen vigentes (las generó OTRA suma).
+   * Sirven para explicar por qué no alcanza el saldo: esta visita ya se consumió en un premio.
+   */
+  laterGoalConversions?: number;
   balance: number;
   reason: string;
   now: Date;
@@ -182,6 +187,8 @@ export function decideVoid(input: VoidInput): { reversalDelta: number; sideEffec
   }
   if (input.sideEffects.redeemedRewards > 0) throw new LoyaltyError('reward_already_redeemed');
   const balanceAfter = input.balance - entry.delta - input.sideEffects.delta;
+  if (balanceAfter < 0 && entry.delta > 0 && (input.laterGoalConversions ?? 0) > 0)
+    throw new LoyaltyError('void_blocked_by_later_goal', { balance: input.balance, balanceAfter });
   if (balanceAfter < 0)
     throw new LoyaltyError('balance_would_be_negative', { balance: input.balance, balanceAfter });
   return { reversalDelta: -entry.delta, sideEffectsReversalDelta: -input.sideEffects.delta };

@@ -1,10 +1,11 @@
 /**
- * Recuperación de la tarjeta web. Nunca crea membresías: siempre devuelve la existente.
+ * Recuperación de la tarjeta web. Nunca crea membresías: siempre devuelve la existente, con una URL
+ * NUEVA (el token se rota): la URL anterior deja de funcionar en cualquier otro dispositivo.
  *
  *  1. Por correo: el cliente escribe su correo o su celular; si hay coincidencia y el cliente tiene
  *     correo registrado, se envía un enlace de un solo uso (30 min) a ESE correo. La respuesta es
  *     siempre la misma, exista o no, para no revelar quién es cliente.
- *  2. En caja: el dueño/admin (y desde la semana 4, el trabajador) verifica a la persona y muestra
+ *  2. En caja: el dueño/admin o el trabajador (dispositivo + PIN) verifica a la persona y muestra
  *     un QR de un solo uso (10 min). Queda auditado.
  *
  * Buscar solo por celular no basta para abrir una tarjeta: el celular no es secreto.
@@ -144,7 +145,7 @@ export async function issueInStoreRecovery(
   deps: PublicDeps,
   orgId: string,
   membershipId: string,
-  operator: { orgUserId: string; actorType: 'owner' | 'staff' },
+  operator: { orgUserId: string; actorType: 'owner' | 'staff'; deviceId?: string | null },
 ) {
   const token = newToken();
   const expiresAt = new Date(Date.now() + IN_STORE_RECOVERY_MINUTES * 60_000);
@@ -178,7 +179,12 @@ export async function issueInStoreRecovery(
       action: 'card.recovery_issued',
       entityType: 'membership',
       entityId: membershipId,
-      after: { channel: 'in_store', recoveryId: row!.id, expiresAt: expiresAt.toISOString() },
+      after: {
+        channel: 'in_store',
+        recoveryId: row!.id,
+        expiresAt: expiresAt.toISOString(),
+        ...(operator.deviceId ? { deviceId: operator.deviceId } : {}),
+      },
     });
   });
   const recoveryUrl = `${deps.publicBaseUrl.replace(/\/$/, '')}/r/${token}`;
@@ -189,7 +195,10 @@ export async function issueInStoreRecovery(
   };
 }
 
-/** Canjea un enlace de recuperación (un solo uso) y devuelve la tarjeta EXISTENTE. */
+/**
+ * Canjea un enlace de recuperación (un solo uso) y devuelve la tarjeta EXISTENTE con un token nuevo.
+ * En la base solo queda el hash del token nuevo; el anterior deja de abrir la tarjeta.
+ */
 export async function redeemRecovery(db: Db, token: string): Promise<{ webCardToken: string }> {
   if (!isToken(token)) throw invalidRecovery();
   const tokenHash = hashToken(token);
@@ -215,10 +224,12 @@ export async function redeemRecovery(db: Db, token: string): Promise<{ webCardTo
       )
       .returning({ membershipId: cardRecoveryTokens.membershipId, channel: cardRecoveryTokens.channel });
     if (!used) throw invalidRecovery();
+    const webCardToken = newToken();
     const [m] = await tx
-      .select({ webCardToken: memberships.webCardToken })
-      .from(memberships)
-      .where(and(eq(memberships.id, used.membershipId), eq(memberships.status, 'active')));
+      .update(memberships)
+      .set({ webCardTokenHash: hashToken(webCardToken) })
+      .where(and(eq(memberships.id, used.membershipId), eq(memberships.status, 'active')))
+      .returning({ id: memberships.id });
     if (!m) throw invalidRecovery();
     await tx.insert(auditLogs).values({
       organizationId: found.orgId,
@@ -226,8 +237,8 @@ export async function redeemRecovery(db: Db, token: string): Promise<{ webCardTo
       action: 'card.recovered',
       entityType: 'membership',
       entityId: used.membershipId,
-      after: { channel: used.channel },
+      after: { channel: used.channel, cardTokenRotated: true },
     });
-    return { webCardToken: m.webCardToken };
+    return { webCardToken };
   });
 }

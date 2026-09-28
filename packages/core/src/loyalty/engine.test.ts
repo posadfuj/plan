@@ -259,6 +259,20 @@ describe('anulaciones', () => {
     ).toBe('reward_already_redeemed');
   });
 
+  it('una visita anterior a la que completó la meta: explica que se anule primero la más reciente', () => {
+    // La 10.ª visita completó la meta (convert −10) → saldo 0. Anular la 5.ª visita dejaría −1:
+    // esa visita ya se consumió en el premio.
+    const e = { kind: 'earn', delta: 1, actorId: 'owner', createdAt: minutesAgo(60), alreadyReversed: false };
+    const owner = { id: 'owner', canVoidAny: true, isLatestOwnEntry: false };
+    expect(
+      code(() => decideVoid(input({ entry: e, actor: owner, balance: 0, laterGoalConversions: 1 }))),
+    ).toBe('void_blocked_by_later_goal');
+    // Sin conversiones posteriores, el mensaje genérico se mantiene.
+    expect(code(() => decideVoid(input({ entry: e, actor: owner, balance: 0 })))).toBe(
+      'balance_would_be_negative',
+    );
+  });
+
   it('no permite que el saldo quede negativo (puntos ya gastados)', () => {
     const e = { kind: 'earn', delta: 50, actorId: 'owner', createdAt: minutesAgo(5), alreadyReversed: false };
     expect(

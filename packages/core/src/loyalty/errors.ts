@@ -19,6 +19,8 @@ export const LOYALTY_ERRORS = {
   void_not_latest: 'Solo puedes anular tu último movimiento de este cliente',
   void_window_expired: 'Pasó el tiempo permitido para anular',
   reward_already_redeemed: 'El premio que generó este movimiento ya fue canjeado; anula primero el canje',
+  void_blocked_by_later_goal:
+    'Esta visita ya cuenta para un premio que se completó después. Anula primero la visita que completó la meta (la más reciente).',
   balance_would_be_negative: 'La operación dejaría el saldo en negativo',
   invalid_adjustment: 'El ajuste no es válido',
   reason_required: 'Indica el motivo',

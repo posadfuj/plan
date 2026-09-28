@@ -66,9 +66,25 @@ const MATRIX: Record<OrgRole, ReadonlySet<OrgAction>> = {
   staff: new Set(STAFF),
 };
 
+/**
+ * Lo que se puede hacer desde la caja (dispositivo autorizado + PIN), sea cual sea el rol de quien
+ * entra. El dueño o admin que atiende la caja conserva sus permisos de anular y de autorizar excepciones,
+ * pero la gestión del negocio (programa, equipo, exportaciones) solo se hace desde el panel.
+ */
+export const REGISTER_ACTIONS: readonly OrgAction[] = [...STAFF, 'ledger.void.any', 'limits.override'];
+
 export type Actor =
   | { kind: 'superadmin'; userId: string }
   | { kind: 'member'; userId: string; orgId: string; orgUserId: string; role: OrgRole }
+  | {
+      kind: 'register';
+      orgId: string;
+      orgUserId: string;
+      role: OrgRole;
+      deviceId: string;
+      branchId: string;
+      sessionId: string;
+    }
   | { kind: 'system' };
 
 /** ¿Puede este rol ejecutar esta acción dentro de su organización? */
@@ -89,5 +105,10 @@ export function can(actor: Actor, action: OrgAction | PlatformAction, orgId?: st
     case 'member':
       if (orgId === undefined || orgId !== actor.orgId) return false;
       return (ORG_ACTIONS as readonly string[]).includes(action) && roleCan(actor.role, action as OrgAction);
+    case 'register':
+      if (orgId === undefined || orgId !== actor.orgId) return false;
+      return (
+        (REGISTER_ACTIONS as readonly string[]).includes(action) && roleCan(actor.role, action as OrgAction)
+      );
   }
 }

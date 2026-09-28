@@ -1,6 +1,7 @@
 import type { Actor } from '@aiment/core';
 import type { Db } from '@aiment/db';
 import type { Mailer } from '@aiment/mail';
+import type { DeviceContext, ShiftContext } from '@aiment/staff';
 import type { AuthClaims, TokenVerifier } from './auth/verifier';
 import type { RateLimiter, RateLimits } from './rate-limit';
 
@@ -13,6 +14,11 @@ export interface AppConfig {
   rateLimits?: Partial<RateLimits>;
   /** Sal para el hash diario de visitantes (no se guarda la IP). */
   visitorSalt?: string;
+  /**
+   * Cookies de caja con atributo Secure. Por defecto: true si PUBLIC_BASE_URL es https
+   * (túnel, staging, producción); false en http://localhost.
+   */
+  secureCookies?: boolean;
 }
 
 export interface AppDeps {
@@ -43,5 +49,7 @@ export type AppEnv = {
     user: AppUser;
     actor: Actor;
     orgId: string;
+    device: DeviceContext;
+    shift: ShiftContext;
   };
 };

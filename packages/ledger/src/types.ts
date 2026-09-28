@@ -9,6 +9,8 @@ export interface Operator {
   branchId?: string | null;
   canVoidAny: boolean;
   canOverrideLimits: boolean;
+  /** Dueño/admin que autorizó con su PIN una excepción de límites en caja (queda en la auditoría). */
+  overrideApprovedBy?: string | null;
 }
 
 /** Errores del servicio que no son reglas de negocio (recurso inexistente, clave reutilizada). */

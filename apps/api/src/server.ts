@@ -16,6 +16,7 @@ const app = createApp({
     publicBaseUrl: env.PUBLIC_BASE_URL,
     trustProxy: env.TRUST_PROXY,
     visitorSalt: env.VISITOR_HASH_SALT ?? randomBytes(16).toString('hex'),
+    ...(env.SECURE_COOKIES !== undefined ? { secureCookies: env.SECURE_COOKIES } : {}),
     rateLimits: {
       ...(env.RATE_LIMIT_REGISTER ? { register: env.RATE_LIMIT_REGISTER } : {}),
       ...(env.RATE_LIMIT_RECOVERY ? { recovery: env.RATE_LIMIT_RECOVERY } : {}),

@@ -5,6 +5,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { hash as argon2Hash } from '@node-rs/argon2';
 import { createClient } from '@supabase/supabase-js';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
@@ -267,6 +268,8 @@ async function seedOrg(tx: Tx, key: SeedOrgKey) {
     .insert(s.branches)
     .values({ id: o.branchId, organizationId: o.id, name: 'Sede principal', address: 'Lima, Perú' });
 
+  const staffPin = await argon2Hash(SEED.pins.staff);
+  const ownerPin = await argon2Hash(SEED.pins.owner);
   const team: (typeof s.organizationUsers.$inferInsert)[] = [
     {
       id: o.owner.orgUserId,
@@ -274,12 +277,14 @@ async function seedOrg(tx: Tx, key: SeedOrgKey) {
       userId: o.owner.id,
       displayName: o.owner.name,
       role: 'owner',
+      pinHash: ownerPin,
     },
     ...o.staff.map((st) => ({
       id: st.orgUserId,
       organizationId: o.id,
       displayName: st.name,
       role: 'staff' as const,
+      pinHash: staffPin,
     })),
   ];
   if (o.admin)
@@ -289,6 +294,7 @@ async function seedOrg(tx: Tx, key: SeedOrgKey) {
       userId: o.admin.id,
       displayName: o.admin.name,
       role: 'admin',
+      pinHash: ownerPin,
     });
   await tx.insert(s.organizationUsers).values(team);
 
@@ -499,7 +505,8 @@ async function seedOrg(tx: Tx, key: SeedOrgKey) {
       programId: o.programId,
       customerId,
       memberScanToken: newToken(),
-      webCardToken: newToken(),
+      // Los clientes del seed no tienen la URL de su tarjeta: solo se guarda el hash de un token descartado.
+      webCardTokenHash: createHash('sha256').update(newToken()).digest('hex'),
       shortCode: shortCode(rand),
       balance,
       lifetimeEarned: lifetime,

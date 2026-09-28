@@ -85,6 +85,13 @@ const ORG_PATTERNS = [
   'GET /v1/orgs/:orgId/links',
   'GET /v1/orgs/:orgId/links/:linkId/qr',
   'POST /v1/orgs/:orgId/memberships/:membershipId/recovery',
+  'GET /v1/orgs/:orgId/team',
+  'POST /v1/orgs/:orgId/team',
+  'POST /v1/orgs/:orgId/team/:orgUserId/pin',
+  'POST /v1/orgs/:orgId/team/:orgUserId/deactivate',
+  'GET /v1/orgs/:orgId/devices',
+  'POST /v1/orgs/:orgId/devices/pairings',
+  'POST /v1/orgs/:orgId/devices/:deviceId/revoke',
 ];
 let ORG_ENDPOINTS: Endpoint[] = [];
 
@@ -96,7 +103,10 @@ async function orgASnapshot() {
       (select count(*)::int from app.rewards where organization_id = ${A.id}) as rewards,
       (select string_agg(name || coalesce(sort_order::text, ''), ',' order by id) from app.rewards where organization_id = ${A.id}) as reward_state,
       (select count(*)::int from app.program_rule_versions where organization_id = ${A.id}) as rules,
-      (select count(*)::int from app.redemptions where organization_id = ${A.id} and status = 'voided') as voided`),
+      (select count(*)::int from app.redemptions where organization_id = ${A.id} and status = 'voided') as voided,
+      (select string_agg(id::text || status::text || coalesce(pin_hash, ''), ',' order by id) from app.organization_users where organization_id = ${A.id}) as team,
+      (select count(*)::int from app.worker_devices where organization_id = ${A.id} and revoked_at is null) as devices,
+      (select count(*)::int from app.device_pairings where organization_id = ${A.id}) as pairings`),
   );
   return r;
 }
@@ -127,6 +137,22 @@ beforeAll(async () => {
   );
   const m = seedMembershipId('barberia', 3);
   const base = `/v1/orgs/${A.id}`;
+  // Un trabajador y un dispositivo de A creados solo para estas pruebas (baja y revocación).
+  const tempStaff = randomUUID();
+  const tempDevice = randomUUID();
+  await withSystemTx(handle.db, async (tx) => {
+    await tx
+      .insert(schema.organizationUsers)
+      .values({ id: tempStaff, organizationId: A.id, displayName: 'Temporal (test)', role: 'staff' });
+    await tx.insert(schema.workerDevices).values({
+      id: tempDevice,
+      organizationId: A.id,
+      branchId: A.branchId,
+      name: 'Caja (test)',
+      deviceSecretHash: randomUUID(),
+      authorizedBy: A.owner.orgUserId,
+    });
+  });
   ORG_ENDPOINTS = [
     { method: 'GET', path: base, pattern: 'GET /v1/orgs/:orgId' },
     { method: 'GET', path: `${base}/customers`, pattern: 'GET /v1/orgs/:orgId/customers' },
@@ -200,6 +226,37 @@ beforeAll(async () => {
       method: 'POST',
       path: `${base}/memberships/${m}/recovery`,
       pattern: 'POST /v1/orgs/:orgId/memberships/:membershipId/recovery',
+    },
+    { method: 'GET', path: `${base}/team`, pattern: 'GET /v1/orgs/:orgId/team' },
+    {
+      method: 'POST',
+      path: `${base}/team`,
+      pattern: 'POST /v1/orgs/:orgId/team',
+      body: { name: 'Acceso Prueba', pin: '4826' },
+    },
+    {
+      method: 'POST',
+      // El dueño "cambia" su PIN por el mismo del seed: no altera otras pruebas.
+      path: `${base}/team/${A.owner.orgUserId}/pin`,
+      pattern: 'POST /v1/orgs/:orgId/team/:orgUserId/pin',
+      body: { pin: SEED.pins.owner },
+    },
+    {
+      method: 'POST',
+      path: `${base}/team/${tempStaff}/deactivate`,
+      pattern: 'POST /v1/orgs/:orgId/team/:orgUserId/deactivate',
+    },
+    { method: 'GET', path: `${base}/devices`, pattern: 'GET /v1/orgs/:orgId/devices' },
+    {
+      method: 'POST',
+      path: `${base}/devices/pairings`,
+      pattern: 'POST /v1/orgs/:orgId/devices/pairings',
+      body: { name: 'Caja de acceso' },
+    },
+    {
+      method: 'POST',
+      path: `${base}/devices/${tempDevice}/revoke`,
+      pattern: 'POST /v1/orgs/:orgId/devices/:deviceId/revoke',
     },
   ];
   const verifier = createSupabaseVerifier({ supabaseUrl: SUPABASE_URL, jwtSecret: JWT_SECRET });
@@ -397,10 +454,10 @@ describe('suspensión de un negocio', () => {
     expect(after.json.stats).toEqual(before.json.stats);
 
     const audit = await call(app, 'GET', `/v1/orgs/${C.id}/audit`, C.owner.id);
-    expect((audit.json.entries as { action: string }[]).map((e) => e.action)).toEqual([
-      'org.reactivated',
-      'org.suspended',
-    ]);
+    // Otras suites (caja) también escriben en la auditoría de este negocio: se miran solo las del negocio.
+    expect(
+      (audit.json.entries as { action: string }[]).map((e) => e.action).filter((a) => a.startsWith('org.')),
+    ).toEqual(['org.reactivated', 'org.suspended']);
   });
 
   it('suspender exige motivo', async () => {

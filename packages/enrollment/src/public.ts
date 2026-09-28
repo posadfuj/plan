@@ -3,7 +3,8 @@
  * y página del QR de caja (/s). Nada de esto requiere sesión: se accede por códigos o tokens.
  *
  * Tokens de una membresía (nunca se mezclan):
- *  - web_card_token    → URL privada de la tarjeta (/m/...). Da acceso a nombre, saldo e historial.
+ *  - web card token    → URL privada de la tarjeta (/m/...). Da acceso a nombre, saldo e historial.
+ *                        En la base solo se guarda su hash (web_card_token_hash); se rota al recuperar.
  *  - member_scan_token → contenido del QR que escanea la caja (/s/...). Por sí solo no muestra datos.
  */
 import { createHash } from 'node:crypto';
@@ -14,7 +15,7 @@ import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { EnrollmentError, notFound } from './errors';
 import { requestEmailRecoveryForMembership } from './recovery';
-import { isToken, newShortCode, newToken } from './tokens';
+import { hashToken, isToken, newShortCode, newToken } from './tokens';
 
 const {
   shortLinks,
@@ -242,9 +243,11 @@ export const registerSchema = z.object({
     .max(120)
     .optional()
     .or(z.literal('').transform(() => undefined)),
+  /** dd/mm/aaaa (lo que escribe el cliente) o aaaa-mm-dd. */
   birthDate: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .trim()
+    .regex(/^(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})$/, 'Escribe tu cumpleaños como dd/mm/aaaa')
     .optional()
     .or(z.literal('').transform(() => undefined)),
   acceptTerms: z.literal(true, { message: 'Debes aceptar los términos' }),
@@ -261,14 +264,21 @@ export type RegisterResult =
 const ALREADY =
   'Este celular ya tiene una tarjeta en este negocio. Si registraste un correo, te enviamos un enlace para abrirla; si no, pídela en caja.';
 
-function validBirthDate(s: string | undefined): string | null {
-  if (!s) return null;
+/** Convierte dd/mm/aaaa a aaaa-mm-dd (formato de la base). Deja pasar aaaa-mm-dd. */
+export function toIsoDate(s: string): string {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : s;
+}
+
+function validBirthDate(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const s = toIsoDate(raw);
+  const invalid = () =>
+    new EnrollmentError(422, 'invalid_birth_date', 'Fecha de cumpleaños inválida (usa dd/mm/aaaa)');
   const d = new Date(`${s}T00:00:00Z`);
-  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== s)
-    throw new EnrollmentError(422, 'invalid_birth_date', 'Fecha de nacimiento inválida');
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== s) throw invalid();
   const years = (Date.now() - d.getTime()) / (365.25 * 86_400_000);
-  if (years < 10 || years > 110)
-    throw new EnrollmentError(422, 'invalid_birth_date', 'Fecha de nacimiento inválida');
+  if (years < 10 || years > 110) throw invalid();
   return s;
 }
 
@@ -387,7 +397,7 @@ export async function registerCustomer(
           programId: ctx.program.id,
           customerId: customer!.id,
           memberScanToken: newToken(),
-          webCardToken,
+          webCardTokenHash: hashToken(webCardToken),
           shortCode,
         })
         .returning({ id: memberships.id });
@@ -449,7 +459,7 @@ export async function getCard(db: Db, webCardToken: string) {
       .innerJoin(programRuleVersions, eq(programRuleVersions.id, loyaltyPrograms.currentVersionId))
       .where(
         and(
-          eq(memberships.webCardToken, webCardToken),
+          eq(memberships.webCardTokenHash, hashToken(webCardToken)),
           eq(memberships.status, 'active'),
           eq(customers.status, 'active'),
           eq(organizations.status, 'live'),

@@ -5,6 +5,7 @@
  */
 import { createDb, schema, withSystemTx, type DbHandle } from '@aiment/db';
 import { SEED, seedMembershipId } from '@aiment/db/seed-data';
+import { hashToken } from '@aiment/enrollment';
 import { MemoryMailer } from '@aiment/mail';
 import { randomInt } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
@@ -30,7 +31,7 @@ const newPhone = () => `9${randomInt(10_000_000, 99_999_999)}`;
 async function req(
   method: string,
   path: string,
-  opts: { body?: unknown; ip?: string; headers?: Record<string, string>; user?: string } = {},
+  opts: { body?: unknown; ip?: string; headers?: Record<string, string>; user?: string; app?: App } = {},
 ) {
   const headers: Record<string, string> = {
     'content-type': 'application/json',
@@ -45,7 +46,7 @@ async function req(
       .setAudience('authenticated')
       .setExpirationTime('5m')
       .sign(new TextEncoder().encode(JWT_SECRET))}`;
-  const res = await app.request(path, {
+  const res = await (opts.app ?? app).request(path, {
     method,
     headers,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -163,7 +164,7 @@ describe('registro', () => {
       tx
         .select({
           id: schema.memberships.id,
-          web: schema.memberships.webCardToken,
+          web: schema.memberships.webCardTokenHash,
           scan: schema.memberships.memberScanToken,
           balance: schema.memberships.balance,
           phone: schema.customers.phoneE164,
@@ -171,10 +172,13 @@ describe('registro', () => {
         })
         .from(schema.memberships)
         .innerJoin(schema.customers, eq(schema.customers.id, schema.memberships.customerId))
-        .where(eq(schema.memberships.webCardToken, r.json.webCardToken)),
+        .where(eq(schema.memberships.webCardTokenHash, hashToken(r.json.webCardToken))),
     );
     expect(m!.phone).toBe(`+51${phone}`);
-    expect(m!.scan).not.toBe(m!.web);
+    expect(m!.scan).not.toBe(r.json.webCardToken);
+    // La base guarda solo el hash de la URL de la tarjeta, nunca el token en claro.
+    expect(m!.web).toBe(hashToken(r.json.webCardToken));
+    expect(m!.web).not.toContain(r.json.webCardToken);
     expect(m!.balance).toBe(0);
     const entries = await withSystemTx(handle.db, (tx) =>
       tx.select().from(schema.ledgerEntries).where(eq(schema.ledgerEntries.membershipId, m!.id)),
@@ -232,9 +236,23 @@ describe('registro', () => {
   });
 
   it('5 registros simultáneos del mismo celular → 1 cliente y 1 membresía', async () => {
+    // Esta prueba es de concurrencia en la base: se sube el límite por celular para que pasen los 5.
+    const relaxed = createApp({
+      db: handle.db,
+      verifier: createSupabaseVerifier({ supabaseUrl: SUPABASE_URL, jwtSecret: JWT_SECRET }),
+      config: {
+        requireSuperadminMfa: false,
+        publicBaseUrl: PUBLIC,
+        trustProxy: true,
+        rateLimits: { registerPhone: 10 },
+      },
+      mailer,
+    });
     const phone = newPhone();
     const results = await Promise.all(
-      Array.from({ length: 5 }, () => req('POST', '/v1/public/register', { body: registration({ phone }) })),
+      Array.from({ length: 5 }, () =>
+        req('POST', '/v1/public/register', { body: registration({ phone }), app: relaxed }),
+      ),
     );
     expect(results.filter((r) => r.json?.status === 'created')).toHaveLength(1);
     expect(results.filter((r) => r.json?.status === 'already_registered')).toHaveLength(4);
@@ -251,6 +269,11 @@ describe('registro', () => {
       [{ birthDate: '2030-01-01' }, 'invalid_birth_date'],
       [{ birthDate: '1990-02-31' }, 'invalid_birth_date'],
     ];
+    // Cumpleaños en el formato que escribe el cliente (dd/mm/aaaa) también se valida.
+    cases.push(
+      [{ birthDate: '31/02/1990' }, 'invalid_birth_date'],
+      [{ birthDate: '1990/02/01' }, 'invalid_registration'],
+    );
     for (const [over, code] of cases) {
       const r = await req('POST', '/v1/public/register', { body: registration(over) });
       expect([r.status, r.json?.error?.code], JSON.stringify(over)).toEqual([422, code]);
@@ -260,13 +283,42 @@ describe('registro', () => {
     ).toBe(404);
   });
 
-  it('límite de registros por IP (5 cada 10 min)', async () => {
+  it('cumpleaños en formato dd/mm/aaaa: se guarda como fecha', async () => {
+    const r = await req('POST', '/v1/public/register', { body: registration({ birthDate: '07/03/1991' }) });
+    expect(r.status).toBe(201);
+    const [c] = await withSystemTx(handle.db, (tx) =>
+      tx
+        .select({ birthDate: schema.customers.birthDate })
+        .from(schema.memberships)
+        .innerJoin(schema.customers, eq(schema.customers.id, schema.memberships.customerId))
+        .where(eq(schema.memberships.webCardTokenHash, hashToken(r.json.webCardToken))),
+    );
+    expect(c!.birthDate).toBe('1991-03-07');
+  });
+
+  it('IP compartida (Wi-Fi del local o CGNAT): 12 clientes distintos se registran sin bloqueo', async () => {
+    const ip = '203.0.113.50';
+    const statuses: number[] = [];
+    for (let i = 0; i < 12; i++)
+      statuses.push((await req('POST', '/v1/public/register', { ip, body: registration() })).status);
+    expect(statuses.every((s) => s === 201)).toBe(true);
+  });
+
+  it('el mismo celular: máximo 3 intentos cada 10 min, aunque cambie de IP', async () => {
+    const phone = newPhone();
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i++)
+      statuses.push((await req('POST', '/v1/public/register', { body: registration({ phone }) })).status);
+    expect(statuses).toEqual([201, 200, 200, 429]);
+  });
+
+  it('una ráfaga desde una sola IP se frena (30 registros cada 10 min)', async () => {
     const ip = '203.0.113.77';
     const statuses: number[] = [];
-    for (let i = 0; i < 6; i++)
+    for (let i = 0; i < 31; i++)
       statuses.push((await req('POST', '/v1/public/register', { ip, body: registration() })).status);
-    expect(statuses.slice(0, 5).every((s) => s === 201)).toBe(true);
-    expect(statuses[5]).toBe(429);
+    expect(statuses.slice(0, 30).every((s) => s === 201)).toBe(true);
+    expect(statuses[30]).toBe(429);
   });
 });
 
@@ -282,7 +334,7 @@ describe('tarjeta web y QR de caja', () => {
       tx
         .select({ scan: schema.memberships.memberScanToken })
         .from(schema.memberships)
-        .where(eq(schema.memberships.webCardToken, web)),
+        .where(eq(schema.memberships.webCardTokenHash, hashToken(web))),
     );
     scan = m!.scan;
   });
@@ -327,7 +379,7 @@ describe('tarjeta web y QR de caja', () => {
       tx
         .select({ id: schema.memberships.id })
         .from(schema.memberships)
-        .where(eq(schema.memberships.webCardToken, web)),
+        .where(eq(schema.memberships.webCardTokenHash, hashToken(web))),
     );
     const adj = await app.request(`/v1/orgs/${A.id}/memberships/${m!.id}/adjust`, {
       method: 'POST',
@@ -381,7 +433,13 @@ describe('recuperación de tarjeta', () => {
     expect(mail!.text).not.toContain(reg.json.webCardToken); // el correo no lleva la URL privada
     const redeem = await req('POST', '/v1/public/recovery/redeem', { body: { token } });
     expect(redeem.status).toBe(200);
-    expect(redeem.json.webCardToken).toBe(reg.json.webCardToken);
+    // Misma tarjeta (mismo cliente y saldo) con una URL NUEVA: la anterior deja de funcionar.
+    expect(redeem.json.webCardToken).not.toBe(reg.json.webCardToken);
+    const before2 = await req('GET', `/v1/public/cards/${reg.json.webCardToken}`);
+    const after2 = await req('GET', `/v1/public/cards/${redeem.json.webCardToken}`);
+    expect(before2.status).toBe(404);
+    expect(after2.status).toBe(200);
+    expect(after2.json.customer.name).toBe('María Fernanda Rojas');
     const reuse = await req('POST', '/v1/public/recovery/redeem', { body: { token } });
     expect([reuse.status, reuse.json.error.code]).toEqual([410, 'recovery_invalid']);
     expect(mailer.sent.slice(before).some((m) => m.to === 'nadie@correo.test')).toBe(false);
@@ -413,14 +471,25 @@ describe('recuperación de tarjeta', () => {
     expect(mail!.text).not.toContain('evil.example');
   });
 
-  it('máximo 3 correos de recuperación por hora por cliente', async () => {
+  it('máximo 3 correos de recuperación por hora por cliente (aunque los pida por correo y por celular)', async () => {
     const email = `limite.${randomInt(1e6)}@correo.test`;
-    await req('POST', '/v1/public/register', { body: registration({ email }) });
+    const phone = newPhone();
+    await req('POST', '/v1/public/register', { body: registration({ email, phone }) });
     const before = mailer.sent.length;
-    for (let i = 0; i < 5; i++)
-      await req('POST', '/v1/public/recovery', { body: { code: A.linkSlug, contact: email } });
+    for (const contact of [email, email, phone, phone, phone])
+      await req('POST', '/v1/public/recovery', { body: { code: A.linkSlug, contact } });
     await new Promise((r) => setTimeout(r, 300));
     expect(mailer.sent.slice(before).filter((m) => m.to === email)).toHaveLength(3);
+  });
+
+  it('el mismo contacto: máximo 3 pedidos cada 10 min, aunque cambie de IP', async () => {
+    const contact = `pedidos.${randomInt(1e6)}@correo.test`;
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i++)
+      statuses.push(
+        (await req('POST', '/v1/public/recovery', { body: { code: A.linkSlug, contact } })).status,
+      );
+    expect(statuses).toEqual([202, 202, 202, 429]);
   });
 
   it('un enlace vencido no abre la tarjeta', async () => {
@@ -443,7 +512,7 @@ describe('recuperación de tarjeta', () => {
       tx
         .select({ id: schema.memberships.id })
         .from(schema.memberships)
-        .where(eq(schema.memberships.webCardToken, reg.json.webCardToken)),
+        .where(eq(schema.memberships.webCardTokenHash, hashToken(reg.json.webCardToken))),
     );
     const issued = await req('POST', `/v1/orgs/${A.id}/memberships/${m!.id}/recovery`, { user: A.owner.id });
     expect(issued.status).toBe(201);
@@ -453,9 +522,15 @@ describe('recuperación de tarjeta', () => {
     expect(minutes).toBeGreaterThan(9);
     expect(minutes).toBeLessThanOrEqual(10);
     const token = issued.json.recoveryUrl.split('/r/')[1];
-    expect((await req('POST', '/v1/public/recovery/redeem', { body: { token } })).json.webCardToken).toBe(
-      reg.json.webCardToken,
+    const recovered = await req('POST', '/v1/public/recovery/redeem', { body: { token } });
+    expect(recovered.json.webCardToken).not.toBe(reg.json.webCardToken); // se rota
+    const [rotated] = await withSystemTx(handle.db, (tx) =>
+      tx
+        .select({ id: schema.memberships.id })
+        .from(schema.memberships)
+        .where(eq(schema.memberships.webCardTokenHash, hashToken(recovered.json.webCardToken))),
     );
+    expect(rotated!.id).toBe(m!.id); // la misma membresía, no una nueva
     expect((await req('POST', '/v1/public/recovery/redeem', { body: { token } })).status).toBe(410);
     const [log] = await withSystemTx(handle.db, (tx) =>
       tx
@@ -485,7 +560,7 @@ describe('recuperación de tarjeta', () => {
       tx
         .select({ id: schema.memberships.id })
         .from(schema.memberships)
-        .where(eq(schema.memberships.webCardToken, reg.json.webCardToken)),
+        .where(eq(schema.memberships.webCardTokenHash, hashToken(reg.json.webCardToken))),
     );
     const issued = await req('POST', `/v1/orgs/${A.id}/memberships/${m!.id}/recovery`, { user: A.owner.id });
     const token = issued.json.recoveryUrl.split('/r/')[1];

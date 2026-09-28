@@ -141,7 +141,7 @@ export async function createTestOrg(
           programId,
           customerId,
           memberScanToken: token(),
-          webCardToken: token(),
+          webCardTokenHash: token(),
           shortCode: `T${suffix.slice(0, 3)}${n}`.toUpperCase(),
         });
       });

@@ -397,6 +397,43 @@ describe('anulaciones', () => {
     expect((await ledgerSum(m)).min_after).toBeGreaterThanOrEqual(0);
   });
 
+  it('anular una visita anterior a la que completó la meta explica qué anular primero', async () => {
+    const m = await org.newMembership();
+    const first = await earn(h.db, org.orgId, {
+      membershipId: m,
+      operator: org.owner,
+      idempotencyKey: key(),
+    });
+    await earn(h.db, org.orgId, { membershipId: m, operator: org.owner, idempotencyKey: key() });
+    const third = await earn(h.db, org.orgId, {
+      membershipId: m,
+      operator: org.owner,
+      idempotencyKey: key(),
+    });
+    expect(third.membership.balance).toBe(0); // la 3.ª completó la meta
+    const blocked = voidEntry(h.db, org.orgId, {
+      entryId: first.entries[0]!.id,
+      reason: 'Error',
+      operator: org.owner,
+      idempotencyKey: key(),
+    });
+    expect(await codeOf(blocked)).toBe('void_blocked_by_later_goal');
+    // Anulando primero la que completó la meta, luego sí se puede anular la anterior.
+    await voidEntry(h.db, org.orgId, {
+      entryId: third.entries[0]!.id,
+      reason: 'Error',
+      operator: org.owner,
+      idempotencyKey: key(),
+    });
+    const ok = await voidEntry(h.db, org.orgId, {
+      entryId: first.entries[0]!.id,
+      reason: 'Error',
+      operator: org.owner,
+      idempotencyKey: key(),
+    });
+    expect(ok.membership.balance).toBe(1);
+  });
+
   it('si el premio generado ya se canjeó, la anulación se bloquea', async () => {
     const m = await org.newMembership();
     let last;

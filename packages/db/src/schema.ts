@@ -182,7 +182,8 @@ export const workerDevices = app.table(
       .notNull()
       .references(() => branches.id),
     name: text('name').notNull(),
-    deviceSecretHash: text('device_secret_hash').notNull(),
+    /** Hash SHA-256 del secreto que guarda la cookie del dispositivo (el secreto no se guarda). */
+    deviceSecretHash: text('device_secret_hash').notNull().unique(),
     authorizedBy: uuid('authorized_by')
       .notNull()
       .references(() => organizationUsers.id),
@@ -204,11 +205,38 @@ export const staffSessions = app.table(
     organizationUserId: uuid('organization_user_id')
       .notNull()
       .references(() => organizationUsers.id),
+    /** Hash SHA-256 del token de la cookie de turno. */
+    tokenHash: text('token_hash').notNull().unique(),
     expiresAt: ts('expires_at').notNull(),
     revokedAt: ts('revoked_at'),
     createdAt: createdAt(),
   },
   (t) => [index('staff_sessions_device_idx').on(t.deviceId, t.expiresAt)],
+);
+
+/**
+ * Autorización de un dispositivo de caja: el dueño genera un código de un solo uso (10 min) que se
+ * muestra como QR; el dispositivo que lo abre queda vinculado. Solo se guarda el hash del código.
+ */
+export const devicePairings = app.table(
+  'device_pairings',
+  {
+    id: id(),
+    organizationId: orgId(),
+    branchId: uuid('branch_id')
+      .notNull()
+      .references(() => branches.id),
+    name: text('name').notNull(),
+    codeHash: text('code_hash').notNull().unique(),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => organizationUsers.id),
+    expiresAt: ts('expires_at').notNull(),
+    usedAt: ts('used_at'),
+    deviceId: uuid('device_id').references(() => workerDevices.id),
+    createdAt: createdAt(),
+  },
+  (t) => [index('device_pairings_org_idx').on(t.organizationId, t.createdAt.desc())],
 );
 
 // ---------------------------------------------------------------------------
@@ -367,8 +395,11 @@ export const memberships = app.table(
       .references(() => customers.id),
     /** QR que presenta el cliente en caja (/s/...). No abre datos privados. */
     memberScanToken: text('member_scan_token').notNull().unique(),
-    /** URL secreta de la tarjeta web (/m/...). Revocable por rotación. */
-    webCardToken: text('web_card_token').notNull().unique(),
+    /**
+     * Hash SHA-256 del token de la URL secreta de la tarjeta web (/m/...). El token en claro solo
+     * existe en el celular del cliente; se rota (nuevo token) en cada recuperación.
+     */
+    webCardTokenHash: text('web_card_token_hash').notNull().unique(),
     shortCode: text('short_code').notNull(),
     balance: integer('balance').notNull().default(0),
     lifetimeEarned: integer('lifetime_earned').notNull().default(0),

@@ -63,6 +63,11 @@ export const SEED = {
       customers: 12,
     },
   },
+  /**
+   * PIN de caja de todos los trabajadores del seed y PIN del dueño/admin (autoriza excepciones en caja).
+   * Solo para datos de prueba: en un negocio real cada persona define el suyo.
+   */
+  pins: { staff: '2580', owner: '1470' },
   /** Celular presente en la barbería y en la veterinaria: prueba que el cliente es por negocio. */
   sharedPhone: '+51987000001',
 } as const;
