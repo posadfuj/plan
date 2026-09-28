@@ -85,7 +85,7 @@ Estado: **cerrada** (salvo la prueba en celulares reales). Detalle en [`semana-3
 
 ## Semana 4: Modo trabajador ✔
 
-Estado: **cerrada** (salvo la prueba en celulares reales). Detalle en [`semana-4-reporte.md`](./semana-4-reporte.md).
+Estado: **aprobada** (salvo la prueba en celulares reales). Detalle en [`semana-4-reporte.md`](./semana-4-reporte.md).
 
 - [x] Autorización de dispositivo (QR de 10 min → cookie) y revocación.
 - [x] Trabajadores con PIN; login en caja (nombre + PIN), bloqueo por intentos, sesión de 12 h y "Cerrar turno".

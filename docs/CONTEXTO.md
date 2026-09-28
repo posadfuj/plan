@@ -5,7 +5,7 @@
 ## Estado al 28/09/2026
 
 - Rama de trabajo: `claude/loyalty-platform-technical-review-0qpg4x`.
-- **Semanas 1, 2 y 3 aprobadas** por el fundador. **Semana 4 (caja con PIN y dispositivo autorizado) entregada**, pendiente de su revisión. Próxima: **semana 5 (panel del dueño y superadmin)**.
+- **Semanas 1, 2, 3 y 4 aprobadas** por el fundador. Próxima: **semana 5 (panel del dueño y superadmin)**. Antes o al inicio, el fundador hará la prueba en celulares físicos (cliente y caja).
 - Pruebas: 182 tests + 14 E2E (Android e iPhone emulados). CI verde (run #10).
 
 ## Decisiones cerradas (no reabrir)
