@@ -8,6 +8,7 @@ import { hashToken, isToken, newToken } from '@aiment/enrollment';
 import { and, asc, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import QRCode from 'qrcode';
 import { StaffError, notFound } from './errors';
+import { UUID_RE } from './team';
 
 const {
   devicePairings,
@@ -49,6 +50,10 @@ export async function createPairing(
   publicBaseUrl: string,
 ) {
   const name = cleanName(input.name, 'el dispositivo');
+  // Sin sucursal (o vacía, si el panel aún no cargó la lista): la primera activa. Un id mal formado
+  // es una sucursal que no existe, no un error interno.
+  const branchId = typeof input.branchId === 'string' && input.branchId !== '' ? input.branchId : null;
+  if (branchId !== null && !UUID_RE.test(branchId)) throw notFound();
   const code = newToken();
   const expiresAt = new Date(Date.now() + PAIRING_MINUTES * 60_000);
   await withTenantTx(db, orgId, async (tx) => {
@@ -59,7 +64,7 @@ export async function createPairing(
         and(
           eq(branches.organizationId, orgId),
           eq(branches.status, 'active'),
-          typeof input.branchId === 'string' ? eq(branches.id, input.branchId) : undefined,
+          branchId ? eq(branches.id, branchId) : undefined,
         ),
       )
       .orderBy(asc(branches.createdAt))

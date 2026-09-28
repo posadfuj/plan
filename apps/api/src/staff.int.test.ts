@@ -232,6 +232,29 @@ describe('acceso a la caja', () => {
     expect((await new Browser().req('POST', '/v1/staff/device/pair', { body: { code } })).status).toBe(410);
   });
 
+  it('sucursal vacía usa la primera activa; mal formada u otra org → 404, nunca error interno', async () => {
+    const path = `/v1/orgs/${A.id}/devices/pairings`;
+    // El panel aún no cargó la lista de sucursales (celular lento) y manda "".
+    const empty = await owner.req('POST', path, {
+      user: A.owner.id,
+      body: { name: 'Caja lenta', branchId: '' },
+    });
+    expect(empty.status).toBe(201);
+    const code = empty.json.url.split('/caja/vincular/')[1];
+    const [p] = await withSystemTx(handle.db, (tx) =>
+      tx
+        .select({ branchId: schema.devicePairings.branchId })
+        .from(schema.devicePairings)
+        .where(eq(schema.devicePairings.codeHash, hashToken(code))),
+    );
+    expect(p!.branchId).toBe(A.branchId);
+
+    for (const branchId of ['abc', B.branchId]) {
+      const r = await owner.req('POST', path, { user: A.owner.id, body: { name: 'Caja', branchId } });
+      expect(r.status, String(branchId)).toBe(404);
+    }
+  });
+
   it('con URL pública https la cookie lleva Secure', async () => {
     const httpsApp = createApp({
       db: handle.db,

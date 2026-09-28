@@ -39,7 +39,12 @@ export function DevicesSection() {
     e.preventDefault();
     const name = String(new FormData(e.currentTarget).get('name') ?? '');
     void run(async () => {
-      setPairing(await call('/devices/pairings', { method: 'POST', json: { name, branchId } }));
+      setPairing(
+        await call('/devices/pairings', {
+          method: 'POST',
+          json: { name, ...(branchId ? { branchId } : {}) },
+        }),
+      );
     });
   }
 

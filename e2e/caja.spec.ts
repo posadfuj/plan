@@ -260,6 +260,11 @@ test('sin internet la caja avisa y, al volver la señal, no duplica la suma', as
 });
 
 test('el dueño autoriza el dispositivo desde su panel', async ({ page, browser }) => {
+  // Celular lento: la lista de sucursales tarda y el dueño toca "Generar QR" antes de que llegue.
+  await page.route('**/v1/orgs/*/branches', async (route) => {
+    await new Promise((r) => setTimeout(r, 3_000));
+    await route.continue();
+  });
   await panelLogin(page, SEED.orgs.barberia.owner, '/panel/cajas');
   await page.getByPlaceholder('Ej.: Celular del mostrador').fill('Tablet de la barra');
   await page.getByRole('button', { name: 'Generar QR' }).click();
