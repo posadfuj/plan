@@ -1,0 +1,52 @@
+{
+  "name": "aiment-wallet",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "local:setup": "pnpm local:up && pnpm local:env && pnpm db:reset",
+    "local:up": "supabase start -x studio,realtime,edge-runtime,logflare,vector,imgproxy,postgres-meta,supavisor,storage-api",
+    "local:down": "supabase stop",
+    "local:env": "tsx scripts/write-local-env.ts",
+    "dev": "turbo run dev",
+    "db:migrate": "pnpm --filter @aiment/db migrate",
+    "db:roles": "pnpm --filter @aiment/db roles",
+    "db:seed": "pnpm --filter @aiment/db seed",
+    "db:reset": "pnpm --filter @aiment/db reset",
+    "db:generate": "pnpm --filter @aiment/db generate",
+    "demo": "tsx scripts/demo-semana-1.ts",
+    "wallet:google-demo": "pnpm --filter @aiment/wallet google-demo",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "turbo run typecheck && tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
+    "db:check": "pnpm --filter @aiment/db exec drizzle-kit generate --name drift-check && git diff --exit-code --stat -- packages/db/migrations && test -z \"$(git status --porcelain -- packages/db/migrations)\""
+  },
+  "devDependencies": {
+    "@aiment/api": "workspace:*",
+    "@aiment/config": "workspace:*",
+    "@aiment/db": "workspace:*",
+    "@aiment/wallet": "workspace:*",
+    "@aiment/worker": "workspace:*",
+    "@eslint/js": "^10.0.1",
+    "@hono/node-server": "^2.1.1",
+    "@types/node": "^22.19.0",
+    "drizzle-orm": "^0.45.3",
+    "eslint": "^10.11.0",
+    "jose": "^6.2.12",
+    "postgres": "^3.4.9",
+    "prettier": "^3.9.9",
+    "supabase": "^2.118.0",
+    "tsx": "^4.23.15",
+    "turbo": "^2.11.5",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.2",
+    "zod": "^4.6.5"
+  }
+}

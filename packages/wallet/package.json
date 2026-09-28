@@ -1,0 +1,16 @@
+{
+  "name": "@aiment/wallet",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "google-demo": "tsx src/scripts/google-demo.ts"
+  },
+  "dependencies": {
+    "@aiment/config": "workspace:*",
+    "jose": "^6.2.12"
+  }
+}

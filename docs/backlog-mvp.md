@@ -7,51 +7,56 @@ Referencia técnica: [`arquitectura-v1.1.md`](./arquitectura-v1.1.md) · Modelo 
 
 ## Ajustes sobre el roadmap del documento v1.1
 
-| Ajuste | Motivo |
-|---|---|
-| **Panel del dueño (marca, programa, plantillas, clientes) en la semana 5** | El roadmap v1.1 no tenía una semana para configurar el negocio desde la interfaz. Sin eso no se cumple la definición de éxito: "operarlo de principio a fin sin tocar código". |
-| Reportes, CSV y automatizaciones pasan a la **semana 6**, junto con el hardening | Hacen lugar al panel. Las automatizaciones del MVP son pequeñas (3 reglas síncronas o basadas en el outbox). |
-| **Recuperación de tarjeta en las semanas 3–4** (antes en la 6) | Nace junto con la tarjeta web y la caja: el QR de recuperación lo muestra la caja. |
-| **Túnel HTTPS desde la semana 3** | La cámara del navegador y las pruebas con NFC en celulares reales exigen HTTPS. |
-| **Prueba rápida de Google Wallet en la semana 1** (≈ 2 h, US$0) | Valida pronto que los Android de Perú guardan pases, sin esperar a la semana 7. |
-| **Proveedor Wallet simulado** desde la semana 2 | Outbox, colas y reintentos quedan probados antes de conectar Apple y Google. |
+| Ajuste                                                                           | Motivo                                                                                                                                                                         |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Panel del dueño (marca, programa, plantillas, clientes) en la semana 5**       | El roadmap v1.1 no tenía una semana para configurar el negocio desde la interfaz. Sin eso no se cumple la definición de éxito: "operarlo de principio a fin sin tocar código". |
+| Reportes, CSV y automatizaciones pasan a la **semana 6**, junto con el hardening | Hacen lugar al panel. Las automatizaciones del MVP son pequeñas (3 reglas síncronas o basadas en el outbox).                                                                   |
+| **Recuperación de tarjeta en las semanas 3–4** (antes en la 6)                   | Nace junto con la tarjeta web y la caja: el QR de recuperación lo muestra la caja.                                                                                             |
+| **Túnel HTTPS desde la semana 3**                                                | La cámara del navegador y las pruebas con NFC en celulares reales exigen HTTPS.                                                                                                |
+| **Prueba rápida de Google Wallet en la semana 1** (≈ 2 h, US$0)                  | Valida pronto que los Android de Perú guardan pases, sin esperar a la semana 7.                                                                                                |
+| **Proveedor Wallet simulado** desde la semana 2                                  | Outbox, colas y reintentos quedan probados antes de conectar Apple y Google.                                                                                                   |
 
 ---
 
 ## Carril del fundador (en paralelo)
 
-| Semana | Tarea | Costo |
-|---|---|---|
-| 1 | Confirmar la dedicación de la ingeniera | — |
-| 1 | Crear una cuenta de Google Cloud y una **Google Wallet Issuer en modo demo** (para la prueba rápida) | US$0 |
-| 1 | Crear la organización de GitHub | US$0 |
-| 2 | Probar en 3–4 Android reales (incluido uno de gama baja) el pase de demo que prepara la ingeniera | — |
-| 3 | Elegir 2–3 negocios piloto candidatos y conseguir sus datos de marca (se cargan como semilla "realista", sin clientes reales) | — |
-| 4 | Comprar un lote de prueba de NTAG213/215 (Aiment Card) | Bajo |
-| **≤ 6** | **Elegir y comprar el dominio único** (5–10 años, renovación automática, bloqueo) y moverlo a Cloudflare | ~US$10–15/año |
-| 6–7 | Inscribirse en **Apple Developer (individual)** | US$99/año |
-| 8 | Abogado: privacidad, términos, contrato de encargo con comercios y flujo transfronterizo | Según honorarios |
-| 8 | Solicitar **acceso de publicación a Google Wallet** | US$0 |
-| 9 | Contratar hosting de staging y producción (opción A) | ~US$40–55/mes |
-| 9 | Preparar el kit presencial: guion, manual de caja de 1 página y NFC grabados con el dominio definitivo | — |
+| Semana  | Tarea                                                                                                                         | Costo            |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| 1       | Confirmar la dedicación de la ingeniera                                                                                       | —                |
+| 1       | Crear una cuenta de Google Cloud y una **Google Wallet Issuer en modo demo** (para la prueba rápida)                          | US$0             |
+| 1       | Crear la organización de GitHub                                                                                               | US$0             |
+| 2       | Probar en 3–4 Android reales (incluido uno de gama baja) el pase de demo que prepara la ingeniera                             | —                |
+| 3       | Elegir 2–3 negocios piloto candidatos y conseguir sus datos de marca (se cargan como semilla "realista", sin clientes reales) | —                |
+| 4       | Comprar un lote de prueba de NTAG213/215 (Aiment Card)                                                                        | Bajo             |
+| **≤ 6** | **Elegir y comprar el dominio único** (5–10 años, renovación automática, bloqueo) y moverlo a Cloudflare                      | ~US$10–15/año    |
+| 6–7     | Inscribirse en **Apple Developer (individual)**                                                                               | US$99/año        |
+| 8       | Abogado: privacidad, términos, contrato de encargo con comercios y flujo transfronterizo                                      | Según honorarios |
+| 8       | Solicitar **acceso de publicación a Google Wallet**                                                                           | US$0             |
+| 9       | Contratar hosting de staging y producción (opción A)                                                                          | ~US$40–55/mes    |
+| 9       | Preparar el kit presencial: guion, manual de caja de 1 página y NFC grabados con el dominio definitivo                        | —                |
 
 ---
 
-## Semana 1: Entorno local reproducible + multi-tenant base
+## Semana 1: Entorno local reproducible + multi-tenant base ✔
 
-- [ ] Monorepo pnpm + Turborepo, TypeScript estricto, ESLint, Prettier y Vitest.
-- [ ] `docker-compose.yml` (postgres:16, mailpit, minio), `.env.example` y `README.md` de instalación desde cero.
-- [ ] Drizzle con el esquema de `esquema-v1.1.sql`; `pnpm db:migrate`, `db:seed` y `db:reset`.
-- [ ] Rol `app_api`, RLS y `withTenantTx(orgId)`.
-- [ ] Better Auth en la API (correo + contraseña, magic link con Mailpit, TOTP para superadmin) y `AuthContext` + `can()`.
-- [ ] Semillas: negocios A (barbería), B (cafetería) y C (veterinaria), más el superadmin.
-- [ ] **Primera versión de la suite de aislamiento** (B no ve A) en CI (GitHub Actions con Postgres de servicio).
-- [ ] Escaneo de secretos en CI.
-- [ ] **Prueba rápida:** un script que firma un JWT de Google Wallet (modo demo) → enlace "Guardar" para la prueba en campo del fundador.
+Estado: **cerrada**. Detalle en [`semana-1-reporte.md`](./semana-1-reporte.md).
 
-**Demostrable:** `docker compose up` + 3 comandos levantan todo. Un test prueba que el negocio B no ve al A.
+- [x] Monorepo pnpm + Turborepo, TypeScript estricto, ESLint, Prettier y Vitest.
+- [x] Entorno local con **Supabase CLI** (Postgres 17 + Auth + Mailpit en Docker), `.env.example`, `pnpm local:env` y `README.md` de instalación desde cero. _(Reemplaza a docker-compose: ver ADR 0001.)_
+- [x] Esquema Drizzle completo (30 tablas) + migración de seguridad; `pnpm db:migrate`, `db:seed`, `db:reset` y `db:check`.
+- [x] Rol `app_api` sin `BYPASSRLS`, RLS forzado en todas las tablas de negocio, `withTenantTx(orgId)` y ledger/auditoría inmutables.
+- [x] **Supabase Auth** en la API (JWKS/ES256, TOTP exigible para superadmin) + `AuthContext` + matriz de roles `can()`.
+- [x] Semillas: barbería, cafetería y veterinaria con historial, premios, canjes y pases simulados, más el superadmin.
+- [x] Suite de aislamiento (base + API) en CI con Postgres de servicio.
+- [x] Escaneo de secretos (gitleaks) en CI.
+- [x] Wallet simulado conectado al outbox y a pg-boss, con reintentos.
+- [x] Generador del enlace de Google Wallet (modo demo) + guía. **Pendiente:** ejecutarlo con la cuenta emisora del fundador.
+
+**Demostrable:** `pnpm local:setup` + `pnpm demo` → 19/19 verificaciones.
 
 ## Semana 2: Motor de fidelización
+
+Arrastrado de la semana 1: ejecutar `pnpm wallet:google-demo` con la cuenta emisora y registrar la prueba en Android; sincronización de Wallet con un job por proveedor (hoy un fallo de Google reenvía también a Apple, sin efecto sobre el saldo).
 
 - [ ] `packages/core`: `computeEarn`, `applyGoal` (con arrastre), `checkLimits`, `computeRedeem`, `computeVoid` y `computeExpiration`, con cobertura > 90 %.
 - [ ] Servicio de ledger: `earn`, `redeem`, `void` y `adjust`. Transacción + `FOR UPDATE` + idempotencia (devuelve el resultado original) + `balance_after` + `earned_rewards` + `event_outbox` + auditoría.
@@ -115,7 +120,7 @@ Referencia técnica: [`arquitectura-v1.1.md`](./arquitectura-v1.1.md) · Modelo 
 - [ ] `GoogleWalletProvider`: clase por programa y objeto por membresía, con `issuer_ref`.
 - [ ] Botón "Guardar en Google Wallet" en la tarjeta web.
 - [ ] Generador de strip/hero de sellos (`sharp`), guardado en MinIO y servido públicamente vía túnel (o R2).
-- [ ] Cola `wallet.google.update` con *debounce* y `PATCH`; `addMessage` en `goal_reached`.
+- [ ] Cola `wallet.google.update` con _debounce_ y `PATCH`; `addMessage` en `goal_reached`.
 - [ ] Prueba de resiliencia: con Google caído, la caja sigue funcionando y el pase se pone al día al volver.
 
 **Demostrable:** un pase de prueba se emite y se actualiza en un Android real tras sumar en caja.

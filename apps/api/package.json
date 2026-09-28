@@ -1,0 +1,20 @@
+{
+  "name": "@aiment/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@aiment/config": "workspace:*",
+    "@aiment/core": "workspace:*",
+    "@aiment/db": "workspace:*",
+    "@hono/node-server": "^2.1.1",
+    "drizzle-orm": "^0.45.3",
+    "hono": "^4.13.9",
+    "jose": "^6.2.12",
+    "zod": "^4.6.5"
+  }
+}
