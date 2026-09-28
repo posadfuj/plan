@@ -75,7 +75,8 @@ afterAll(async () => {
 
 beforeEach(async () => {
   // Cada test parte con el outbox vacío (eventos de tests anteriores ya despachados).
-  await dispatchOutboxBatch(handle.db, async () => {});
+  // En lotes: otras suites (registro, caja) pueden dejar más de un lote pendiente.
+  while ((await dispatchOutboxBatch(handle.db, async () => {})) > 0);
 });
 
 describe('Wallet simulado: una cola por proveedor', () => {
