@@ -261,7 +261,8 @@ async function seedOrg(tx: Tx, key: SeedOrgKey) {
     name: o.name,
     category: o.category,
     status: 'live',
-    planCode: key === 'cafe' ? 'pro' : 'start',
+    // Barbería y café en Pro (10 trabajadores); la veterinaria en Start (3) para probar el tope del plan.
+    planCode: key === 'veterinaria' ? 'start' : 'pro',
     branding: { primaryColor: stamps ? '#1F2937' : '#6B3E26', poweredBy: true },
   });
   await tx

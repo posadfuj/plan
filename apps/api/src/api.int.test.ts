@@ -92,6 +92,24 @@ const ORG_PATTERNS = [
   'GET /v1/orgs/:orgId/devices',
   'POST /v1/orgs/:orgId/devices/pairings',
   'POST /v1/orgs/:orgId/devices/:deviceId/revoke',
+  // Semana 5: panel del dueño
+  'GET /v1/orgs/:orgId/settings',
+  'PATCH /v1/orgs/:orgId/settings',
+  'PUT /v1/orgs/:orgId/settings/logo',
+  'DELETE /v1/orgs/:orgId/settings/logo',
+  'PATCH /v1/orgs/:orgId/program',
+  'POST /v1/orgs/:orgId/program/template',
+  'GET /v1/orgs/:orgId/branches',
+  'POST /v1/orgs/:orgId/branches',
+  'PATCH /v1/orgs/:orgId/branches/:branchId',
+  'POST /v1/orgs/:orgId/branches/:branchId/deactivate',
+  'POST /v1/orgs/:orgId/branches/:branchId/reactivate',
+  'POST /v1/orgs/:orgId/customers/:customerId/anonymize',
+  'POST /v1/orgs/:orgId/memberships/:membershipId/block',
+  'POST /v1/orgs/:orgId/memberships/:membershipId/unblock',
+  'POST /v1/orgs/:orgId/memberships/:membershipId/rotate-card',
+  'POST /v1/orgs/:orgId/team/:orgUserId/reactivate',
+  'PATCH /v1/orgs/:orgId/team/:orgUserId',
 ];
 let ORG_ENDPOINTS: Endpoint[] = [];
 
@@ -106,7 +124,13 @@ async function orgASnapshot() {
       (select count(*)::int from app.redemptions where organization_id = ${A.id} and status = 'voided') as voided,
       (select string_agg(id::text || status::text || coalesce(pin_hash, ''), ',' order by id) from app.organization_users where organization_id = ${A.id}) as team,
       (select count(*)::int from app.worker_devices where organization_id = ${A.id} and revoked_at is null) as devices,
-      (select count(*)::int from app.device_pairings where organization_id = ${A.id}) as pairings`),
+      (select count(*)::int from app.device_pairings where organization_id = ${A.id}) as pairings,
+      (select name || branding::text || plan_code from app.organizations where id = ${A.id}) as org,
+      (select string_agg(name || coalesce(address, '') || status::text, ',' order by id) from app.branches where organization_id = ${A.id}) as branches,
+      (select count(*)::int from app.short_links where organization_id = ${A.id}) as links,
+      (select string_agg(id::text || status::text || web_card_token_hash, ',' order by id) from app.memberships where organization_id = ${A.id}) as memberships,
+      (select string_agg(id::text || status::text || coalesce(full_name, ''), ',' order by id) from app.customers where organization_id = ${A.id}) as customers,
+      (select string_agg(p.name || p.unit_label || p.mode::text || p.current_version_id::text, ',') from app.loyalty_programs p where organization_id = ${A.id}) as program`),
   );
   return r;
 }
@@ -137,9 +161,11 @@ beforeAll(async () => {
   );
   const m = seedMembershipId('barberia', 3);
   const base = `/v1/orgs/${A.id}`;
-  // Un trabajador y un dispositivo de A creados solo para estas pruebas (baja y revocación).
+  // Un trabajador, un dispositivo y un cliente de A creados solo para estas pruebas (baja, revocación, bloqueo).
   const tempStaff = randomUUID();
   const tempDevice = randomUUID();
+  const tempCustomer = randomUUID();
+  const tempMembership = randomUUID();
   await withSystemTx(handle.db, async (tx) => {
     await tx
       .insert(schema.organizationUsers)
@@ -151,6 +177,21 @@ beforeAll(async () => {
       name: 'Caja (test)',
       deviceSecretHash: randomUUID(),
       authorizedBy: A.owner.orgUserId,
+    });
+    await tx.insert(schema.customers).values({
+      id: tempCustomer,
+      organizationId: A.id,
+      fullName: 'Cliente Temporal',
+      phoneE164: `+5199${String(Date.now()).slice(-7)}`,
+    });
+    await tx.insert(schema.memberships).values({
+      id: tempMembership,
+      organizationId: A.id,
+      programId: A.programId,
+      customerId: tempCustomer,
+      memberScanToken: randomUUID().replaceAll('-', '').slice(0, 22),
+      webCardTokenHash: randomUUID(),
+      shortCode: `T${String(Date.now()).slice(-5)}`,
     });
   });
   ORG_ENDPOINTS = [
@@ -257,6 +298,88 @@ beforeAll(async () => {
       method: 'POST',
       path: `${base}/devices/${tempDevice}/revoke`,
       pattern: 'POST /v1/orgs/:orgId/devices/:deviceId/revoke',
+    },
+    { method: 'GET', path: `${base}/settings`, pattern: 'GET /v1/orgs/:orgId/settings' },
+    {
+      method: 'PATCH',
+      path: `${base}/settings`,
+      pattern: 'PATCH /v1/orgs/:orgId/settings',
+      body: { tagline: 'Cortes clásicos y modernos' },
+    },
+    // Cuerpo JSON en lugar de imagen: el dueño recibe 415 (formato), el de otro negocio 404.
+    { method: 'PUT', path: `${base}/settings/logo`, pattern: 'PUT /v1/orgs/:orgId/settings/logo', body: {} },
+    { method: 'DELETE', path: `${base}/settings/logo`, pattern: 'DELETE /v1/orgs/:orgId/settings/logo' },
+    {
+      method: 'PATCH',
+      path: `${base}/program`,
+      pattern: 'PATCH /v1/orgs/:orgId/program',
+      body: { name: 'Club Barbería Pedro' },
+    },
+    {
+      // Con clientes no se cambia de plantilla: 409 para el dueño.
+      method: 'POST',
+      path: `${base}/program/template`,
+      pattern: 'POST /v1/orgs/:orgId/program/template',
+      body: { template: 'cafeteria' },
+    },
+    { method: 'GET', path: `${base}/branches`, pattern: 'GET /v1/orgs/:orgId/branches' },
+    // Plan Pro: 1 sucursal → 409 para el dueño.
+    {
+      method: 'POST',
+      path: `${base}/branches`,
+      pattern: 'POST /v1/orgs/:orgId/branches',
+      body: { name: 'Sucursal de acceso' },
+    },
+    {
+      method: 'PATCH',
+      path: `${base}/branches/${A.branchId}`,
+      pattern: 'PATCH /v1/orgs/:orgId/branches/:branchId',
+      body: { name: 'Sede principal', address: 'Lima, Perú' },
+    },
+    // Única sucursal activa → 409 (no se desactiva); ya activa → 409 al reactivar.
+    {
+      method: 'POST',
+      path: `${base}/branches/${A.branchId}/deactivate`,
+      pattern: 'POST /v1/orgs/:orgId/branches/:branchId/deactivate',
+    },
+    {
+      method: 'POST',
+      path: `${base}/branches/${A.branchId}/reactivate`,
+      pattern: 'POST /v1/orgs/:orgId/branches/:branchId/reactivate',
+    },
+    // Sin la palabra BAJA → 422 (no se anonimiza a nadie).
+    {
+      method: 'POST',
+      path: `${base}/customers/${tempCustomer}/anonymize`,
+      pattern: 'POST /v1/orgs/:orgId/customers/:customerId/anonymize',
+      body: {},
+    },
+    {
+      method: 'POST',
+      path: `${base}/memberships/${tempMembership}/block`,
+      pattern: 'POST /v1/orgs/:orgId/memberships/:membershipId/block',
+      body: { reason: 'Prueba de acceso' },
+    },
+    {
+      method: 'POST',
+      path: `${base}/memberships/${tempMembership}/unblock`,
+      pattern: 'POST /v1/orgs/:orgId/memberships/:membershipId/unblock',
+    },
+    {
+      method: 'POST',
+      path: `${base}/memberships/${tempMembership}/rotate-card`,
+      pattern: 'POST /v1/orgs/:orgId/memberships/:membershipId/rotate-card',
+    },
+    {
+      method: 'POST',
+      path: `${base}/team/${tempStaff}/reactivate`,
+      pattern: 'POST /v1/orgs/:orgId/team/:orgUserId/reactivate',
+    },
+    {
+      method: 'PATCH',
+      path: `${base}/team/${tempStaff}`,
+      pattern: 'PATCH /v1/orgs/:orgId/team/:orgUserId',
+      body: { branchIds: [A.branchId] },
     },
   ];
   const verifier = createSupabaseVerifier({ supabaseUrl: SUPABASE_URL, jwtSecret: JWT_SECRET });

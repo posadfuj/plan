@@ -17,7 +17,8 @@ import {
   type Page,
   type PlaywrightWorkerArgs,
 } from '@playwright/test';
-import { decodeQr, pairingCodeFromDb, qrVideo, randomPhone } from './helpers';
+import { SEED } from '@aiment/db/seed-data';
+import { decodeQr, pairingCodeFromDb, panelLogin, qrVideo, randomPhone } from './helpers';
 
 const LINK = 'BRB2K'; // Barbería Pedro
 const STAFF_PIN = '2580'; // PIN de los trabajadores del seed
@@ -197,11 +198,7 @@ test('flujo de caja completo con cámara, PIN, límites y anulación', async ({ 
 });
 
 test('el dueño autoriza el dispositivo desde su panel', async ({ page, browser }) => {
-  test.skip(!process.env.E2E_AUTH, 'Requiere Supabase Auth local (pnpm local:setup)');
-  await page.goto('/panel');
-  await page.getByPlaceholder('Correo').fill('dueno.barberia@aiment.test');
-  await page.getByPlaceholder('Contraseña').fill(process.env.SEED_USER_PASSWORD ?? 'aiment-demo-2026');
-  await page.getByRole('button', { name: 'Entrar' }).click();
+  await panelLogin(page, SEED.orgs.barberia.owner, '/panel/cajas');
   await page.getByPlaceholder('Ej.: Celular del mostrador').fill('Tablet de la barra');
   await page.getByRole('button', { name: 'Generar QR' }).click();
   const qr = page.getByTestId('pairing-qr');

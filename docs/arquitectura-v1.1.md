@@ -356,6 +356,10 @@ HTTPS en todo lo publicado (HSTS), CORS restringido, CSP estricta y tokens de 12
 
 La URL de la tarjeta se guarda solo como hash y se rota al recuperar ([ADR 0002](./decisiones/0002-token-de-tarjeta-con-hash.md)).
 
+La caja **necesita conexión a internet**: no hay modo sin conexión en el MVP, para evitar duplicados, fraude y canjes dobles ([ADR 0004](./decisiones/0004-caja-requiere-conexion.md)).
+
+Archivos subidos (logo, semana 5): se validan por contenido (PNG, JPG o WebP; SVG rechazado), máximo 1 MB, clave aleatoria por subida y servidos con `nosniff` y CSP. En local se guardan en disco (`@aiment/storage`); en producción, R2 con la misma interfaz.
+
 Logs sin tokens ni datos personales, `pnpm audit` y escaneo de secretos en CI.
 
 ---

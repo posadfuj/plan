@@ -29,6 +29,7 @@ export const ORG_ACTIONS = [
   'team.manage_admins',
   'devices.manage',
   'links.manage',
+  'branches.manage',
   'reports.read',
   'audit.read',
 ] as const;

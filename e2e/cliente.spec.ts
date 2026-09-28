@@ -4,7 +4,8 @@
  * más duplicados y recuperación de la tarjeta.
  */
 import { expect, test, type Page } from '@playwright/test';
-import { decodeQr, randomEmail, randomPhone, waitForEmail } from './helpers';
+import { SEED } from '@aiment/db/seed-data';
+import { decodeQr, panelLogin, randomEmail, randomPhone, waitForEmail } from './helpers';
 
 const LINK = 'BRB2K'; // Barbería Pedro (datos de prueba)
 const shots = (page: Page, name: string) =>
@@ -151,10 +152,6 @@ test('recuperar la tarjeta por correo en un celular nuevo (enlace de un solo uso
 });
 
 test('recuperar en el local: el dueño muestra un QR y el cliente lo escanea', async ({ page, browser }) => {
-  test.skip(
-    !process.env.E2E_AUTH,
-    'Requiere Supabase Auth local (pnpm local:setup); en CI se cubre con tests de integración',
-  );
   const phone = randomPhone();
   await register(page, { name: 'Luis Mendoza', phone });
   await page.getByRole('button', { name: 'Crear mi tarjeta' }).click();
@@ -163,14 +160,11 @@ test('recuperar en el local: el dueño muestra un QR y el cliente lo escanea', a
 
   const ownerCtx = await browser.newContext();
   const owner = await ownerCtx.newPage();
-  await owner.goto('/panel');
-  await owner.getByPlaceholder('Correo').fill('dueno.barberia@aiment.test');
-  await owner.getByPlaceholder('Contraseña').fill(process.env.SEED_USER_PASSWORD ?? 'aiment-demo-2026');
-  await owner.getByRole('button', { name: 'Entrar' }).click();
-  await expect(owner.getByText('QR y NFC del mostrador')).toBeVisible();
+  await panelLogin(owner, SEED.orgs.barberia.owner, '/panel/sucursales');
   await expect(owner.getByRole('img', { name: `QR de registro ${LINK}` })).toBeVisible();
-  await owner.getByPlaceholder('Celular o nombre').fill(phone);
-  await owner.getByRole('button', { name: 'Buscar' }).click();
+  await owner.getByRole('link', { name: 'Clientes' }).click();
+  await owner.getByLabel('Buscar cliente').fill(phone);
+  await owner.getByRole('button', { name: /Luis Mendoza/ }).click();
   await owner.getByRole('button', { name: 'QR de recuperación' }).click();
   const recoveryQr = owner.getByTestId('recovery-qr');
   await expect(recoveryQr).toBeVisible();

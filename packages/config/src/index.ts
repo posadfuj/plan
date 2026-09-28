@@ -59,6 +59,10 @@ export const apiEnvSchema = dbEnvSchema.extend(authEnvSchema.shape).extend({
   RATE_LIMIT_RECOVERY: z.coerce.number().int().positive().optional(),
   RATE_LIMIT_REDEEM: z.coerce.number().int().positive().optional(),
   RATE_LIMIT_DEVICE_PAIR: z.coerce.number().int().positive().optional(),
+  /** Clave secreta de Supabase (solo servidor): invitar dueños desde el panel maestro. */
+  SUPABASE_SECRET_KEY: z.string().optional(),
+  /** Carpeta de archivos (logos) en local. En producción: R2/S3 (semana 9). */
+  STORAGE_DIR: z.string().default('.data/storage'),
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

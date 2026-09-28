@@ -9,6 +9,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@aiment/business": "workspace:*",
     "@aiment/core": "workspace:*",
     "@aiment/db": "workspace:*",
     "@aiment/enrollment": "workspace:*",

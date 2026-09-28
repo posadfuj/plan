@@ -6,7 +6,9 @@ import { LoyaltyError } from '@aiment/core';
 import { EnrollmentError } from '@aiment/enrollment';
 import { ServiceError } from '@aiment/ledger';
 import { StaffError } from '@aiment/staff';
+import { BusinessError } from '@aiment/business';
 import { MemoryMailer } from '@aiment/mail';
+import { MemoryStorage } from '@aiment/storage';
 import { ZodError } from 'zod';
 import type { AppDeps, AppEnv, ResolvedDeps } from './context';
 import { RateLimiter } from './rate-limit';
@@ -17,6 +19,7 @@ import { loyaltyRoutes } from './routes/loyalty';
 import { goRoutes, publicRoutes } from './routes/public';
 import { meRoutes } from './routes/me';
 import { orgRoutes } from './routes/orgs';
+import { panelRoutes } from './routes/panel';
 import { staffRoutes } from './routes/staff';
 import { teamRoutes } from './routes/team';
 
@@ -34,6 +37,8 @@ export function createApp(input: AppDeps) {
   const deps: ResolvedDeps = {
     ...input,
     mailer: input.mailer ?? new MemoryMailer(),
+    storage: input.storage ?? new MemoryStorage(),
+    authAdmin: input.authAdmin ?? null,
     publicBaseUrl: input.config.publicBaseUrl ?? 'http://localhost:5173',
     limiter: new RateLimiter(),
   };
@@ -55,6 +60,7 @@ export function createApp(input: AppDeps) {
   app.route('/v1/orgs/:orgId', loyaltyRoutes);
   app.route('/v1/orgs/:orgId', linkRoutes);
   app.route('/v1/orgs/:orgId', teamRoutes);
+  app.route('/v1/orgs/:orgId', panelRoutes);
   app.route('/v1/staff', staffRoutes);
   app.route('/v1/public', publicRoutes);
   app.route('/go', goRoutes);
@@ -72,6 +78,8 @@ export function createApp(input: AppDeps) {
     if (err instanceof EnrollmentError)
       return c.json({ error: { code: err.code, message: err.message, details: err.details } }, err.status);
     if (err instanceof StaffError)
+      return c.json({ error: { code: err.code, message: err.message, details: err.details } }, err.status);
+    if (err instanceof BusinessError)
       return c.json({ error: { code: err.code, message: err.message, details: err.details } }, err.status);
     if (err instanceof ServiceError)
       return c.json({ error: { code: err.code, message: err.message, details: err.details } }, err.status);

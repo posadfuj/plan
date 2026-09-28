@@ -1,6 +1,8 @@
 import type { Actor } from '@aiment/core';
 import type { Db } from '@aiment/db';
+import type { AuthAdmin } from '@aiment/business';
 import type { Mailer } from '@aiment/mail';
+import type { ObjectStorage } from '@aiment/storage';
 import type { DeviceContext, ShiftContext } from '@aiment/staff';
 import type { AuthClaims, TokenVerifier } from './auth/verifier';
 import type { RateLimiter, RateLimits } from './rate-limit';
@@ -26,11 +28,17 @@ export interface AppDeps {
   verifier: TokenVerifier;
   config: AppConfig;
   mailer?: Mailer;
+  /** Logos y archivos del negocio. Por defecto, en memoria (tests). */
+  storage?: ObjectStorage;
+  /** Invitaciones de dueños (Supabase Auth admin). null = no configurado (sin SUPABASE_SECRET_KEY). */
+  authAdmin?: AuthAdmin | null;
 }
 
 /** Dependencias ya resueltas con valores por defecto (las usan las rutas). */
 export interface ResolvedDeps extends AppDeps {
   mailer: Mailer;
+  storage: ObjectStorage;
+  authAdmin: AuthAdmin | null;
   publicBaseUrl: string;
   limiter: RateLimiter;
 }

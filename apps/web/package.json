@@ -9,6 +9,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@aiment/core": "workspace:*",
     "@supabase/supabase-js": "^2.117.2",
     "@tanstack/react-router": "^1.170.40",
     "qrcode": "^1.5.4",

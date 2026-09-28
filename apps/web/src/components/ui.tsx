@@ -1,16 +1,9 @@
+import { textOn } from '@aiment/core/branding';
 import QRCode from 'qrcode';
 import { useEffect, useState, type ReactNode } from 'react';
 
-/** Texto blanco o negro según el color de marca (contraste legible). */
-export function contrastText(hex: string): string {
-  const n = parseInt(hex.slice(1), 16);
-  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  });
-  const lum = 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
-  return lum > 0.45 ? '#111827' : '#ffffff';
-}
+/** Texto blanco o negro según el color de marca (contraste AA garantizado, misma regla que la API). */
+export const contrastText = textOn;
 
 export function Page({ children }: { children: ReactNode }) {
   return <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 pb-8 pt-4">{children}</main>;

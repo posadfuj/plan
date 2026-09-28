@@ -8,7 +8,7 @@
  *  - member_scan_token → contenido del QR que escanea la caja (/s/...). Por sí solo no muestra datos.
  */
 import { createHash } from 'node:crypto';
-import { normalizePhone } from '@aiment/core';
+import { normalizePhone, publicBranding } from '@aiment/core';
 import { schema, withSystemTx, withTenantTx, type Db, type Tx } from '@aiment/db';
 import type { Mailer } from '@aiment/mail';
 import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
@@ -211,22 +211,16 @@ export async function getJoinInfo(db: Db, code: string) {
   };
 }
 
-function publicBranding(b: Record<string, unknown>) {
-  const color =
-    typeof b.primaryColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(b.primaryColor)
-      ? b.primaryColor
-      : '#1F2937';
-  return {
-    primaryColor: color,
-    logoUrl: typeof b.logoUrl === 'string' && b.logoUrl.startsWith('https://') ? b.logoUrl : null,
-    poweredBy: true,
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Registro
 // ---------------------------------------------------------------------------
 const nameRe = /^[\p{L}][\p{L}\p{M}' .-]{1,79}$/u;
+/**
+ * Correo con letras de cualquier idioma (tildes, ñ) antes y después de la @.
+ * La validación de zod solo aceptaba ASCII y rechazaba, p. ej., "peña@…".
+ */
+export const EMAIL_RE =
+  /^[\p{L}\p{M}\p{N}!#$%&'*+/=?^_`{|}~-]+(\.[\p{L}\p{M}\p{N}!#$%&'*+/=?^_`{|}~-]+)*@([\p{L}\p{M}\p{N}]([\p{L}\p{M}\p{N}-]{0,61}[\p{L}\p{M}\p{N}])?\.)+[\p{L}]{2,24}$/u;
 export const registerSchema = z.object({
   code: z.string().min(4).max(8),
   fullName: z
@@ -239,7 +233,7 @@ export const registerSchema = z.object({
     .string()
     .trim()
     .toLowerCase()
-    .email('Correo inválido')
+    .regex(EMAIL_RE, 'Correo inválido')
     .max(120)
     .optional()
     .or(z.literal('').transform(() => undefined)),
@@ -451,6 +445,7 @@ export async function getCard(db: Db, webCardToken: string) {
         scanToken: memberships.memberScanToken,
         fullName: customers.fullName,
         memberSince: memberships.createdAt,
+        status: memberships.status,
       })
       .from(memberships)
       .innerJoin(customers, eq(customers.id, memberships.customerId))
@@ -460,7 +455,8 @@ export async function getCard(db: Db, webCardToken: string) {
       .where(
         and(
           eq(memberships.webCardTokenHash, hashToken(webCardToken)),
-          eq(memberships.status, 'active'),
+          // Bloqueada por el negocio: la tarjeta abre, pero sin QR (no se puede operar en caja).
+          inArray(memberships.status, ['active', 'blocked']),
           eq(customers.status, 'active'),
           eq(organizations.status, 'live'),
         ),
@@ -522,6 +518,7 @@ export async function getCard(db: Db, webCardToken: string) {
       progress,
       nextReward,
       redeemable,
+      status: row.status as 'active' | 'blocked',
       /** Ruta del QR para la caja. La tarjeta arma la URL completa con su propio origen. */
       scanPath: `/s/${row.scanToken}`,
       shortCode: row.shortCode,

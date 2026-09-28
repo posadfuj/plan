@@ -49,7 +49,11 @@ export async function api<T>(
 // --- Tipos de las respuestas públicas ----------------------------------------
 export interface Branding {
   primaryColor: string;
+  textColor: string;
   logoUrl: string | null;
+  tagline: string | null;
+  conditions: string | null;
+  contact: { phone: string | null; email: string | null; website: string | null; instagram: string | null };
   poweredBy: boolean;
 }
 export interface JoinInfo {
@@ -74,6 +78,8 @@ export interface Card {
   organization: { id: string; name: string; branding: Branding };
   program: { name: string; mode: 'stamps' | 'points'; unitLabel: string; goal: number | null };
   customer: { name: string; memberSince: string };
+  /** blocked: el negocio pausó la tarjeta (no se muestra el QR). */
+  status: 'active' | 'blocked';
   balance: number;
   progress: { current: number; target: number } | null;
   nextReward: { name: string; remaining: number } | null;

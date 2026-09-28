@@ -27,7 +27,23 @@ const routeTree = rootRoute.addChildren([
   createRoute({
     getParentRoute: () => rootRoute,
     path: '/panel',
-    component: lazyRouteComponent(() => import('./routes/panel'), 'PanelPage'),
+    component: lazyRouteComponent(() => import('./panel/page'), 'PanelPage'),
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/panel/acceso',
+    component: lazyRouteComponent(() => import('./panel/access'), 'AccessPage'),
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/panel/$section',
+    component: lazyRouteComponent(() => import('./panel/page'), 'PanelPage'),
+  }),
+  // Panel maestro (superadmin).
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin',
+    component: lazyRouteComponent(() => import('./panel/admin'), 'AdminPage'),
   }),
   // La caja (escáner con cámara y lector QR de respaldo) también se descarga solo al abrirla.
   createRoute({

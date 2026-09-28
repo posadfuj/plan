@@ -2,7 +2,7 @@
 
 Plataforma de fidelización digital multi-negocio: puntos y sellos, tarjeta web, QR/NFC y Apple/Google Wallet.
 
-> Estado: **semana 4 del MVP (local-first)**. Reportes: [semana 1](docs/semana-1-reporte.md) · [semana 2](docs/semana-2-reporte.md) · [semana 3](docs/semana-3-reporte.md) · [semana 4](docs/semana-4-reporte.md).
+> Estado: **semana 5 del MVP (local-first)**. Reportes: [semana 1](docs/semana-1-reporte.md) · [semana 2](docs/semana-2-reporte.md) · [semana 3](docs/semana-3-reporte.md) · [semana 4](docs/semana-4-reporte.md) · [semana 5](docs/semana-5-reporte.md).
 > Documentos: [arquitectura v1.1](docs/arquitectura-v1.1.md) · [backlog](docs/backlog-mvp.md) · [decisiones](docs/decisiones/).
 
 ## Requisitos
@@ -17,8 +17,8 @@ Plataforma de fidelización digital multi-negocio: puntos y sellos, tarjeta web,
 ```bash
 pnpm install
 pnpm local:setup   # levanta Supabase local, genera .env, migra y carga datos de prueba
-pnpm demo          # semana 4: caja + flujo del cliente en Android e iPhone emulados (14/14)
-                   # anteriores: pnpm demo:semana-3 (8) · pnpm demo:semana-2 (23) · pnpm demo:semana-1 (19)
+pnpm demo          # semana 5: panel del dueño de cero a la primera tarjeta + cliente + caja (18/18)
+                   # anteriores: pnpm demo:semana-4 · demo:semana-3 · demo:semana-2 · demo:semana-1
 ```
 
 `pnpm local:setup` equivale a:
@@ -49,14 +49,14 @@ Mailpit (correos locales): http://127.0.0.1:54324
 Todos son ficticios. Contraseña de todos los usuarios: `aiment-demo-2026` (variable `SEED_USER_PASSWORD`).
 PIN de caja de los trabajadores: `2580`. PIN de dueños y admin (autoriza excepciones en caja): `1470`.
 
-| Usuario                      | Rol                                                      |
-| ---------------------------- | -------------------------------------------------------- |
-| `superadmin@aiment.test`     | Superadmin (panel maestro)                               |
-| `dueno.barberia@aiment.test` | Dueño · Barbería Pedro (sellos, 10 = corte gratis)       |
-| `admin.barberia@aiment.test` | Admin · Barbería Pedro                                   |
-| `dueno.cafe@aiment.test`     | Dueña · Café Aroma (puntos, S/1 = 1 punto)               |
-| `dueno.vet@aiment.test`      | Dueño · Veterinaria Patitas (sellos, 6 = baño gratis)    |
-| Jhon, Mario (caja)           | Trabajadores de la barbería (sin correo: entran con PIN) |
+| Usuario                      | Rol                                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------ |
+| `superadmin@aiment.test`     | Superadmin (panel maestro en `/admin`)                                                     |
+| `dueno.barberia@aiment.test` | Dueño · Barbería Pedro (sellos, 10 = corte gratis) · Pro                                   |
+| `admin.barberia@aiment.test` | Admin · Barbería Pedro                                                                     |
+| `dueno.cafe@aiment.test`     | Dueña · Café Aroma (puntos, S/1 = 1 punto)                                                 |
+| `dueno.vet@aiment.test`      | Dueño · Veterinaria Patitas (sellos, 6 = baño gratis) · Start (1 sucursal, 3 trabajadores) |
+| Jhon, Mario (caja)           | Trabajadores de la barbería (sin correo: entran con PIN)                                   |
 
 El celular `+51987000001` está registrado en la barbería y en la veterinaria como dos clientes independientes.
 
@@ -64,12 +64,14 @@ El celular `+51987000001` está registrado en la barbería y en la veterinaria c
 
 ```
 apps/api        API Hono: autenticación (Supabase Auth), roles, endpoints, rutas públicas
-apps/web        PWA: registro, tarjeta web, QR de caja, recuperación, caja (/caja), panel mínimo
+apps/web        PWA: registro, tarjeta web, recuperación, caja (/caja), panel del dueño (/panel) y panel maestro (/admin)
 apps/worker     outbox → pg-boss (una cola por proveedor) → sincronización de Wallet
 packages/core   reglas puras: matriz de permisos y motor de puntos/sellos
 packages/ledger servicio transaccional: sumar, canjear, ajustar, anular, reglas y premios
 packages/enrollment registro, tarjeta web, QR de caja y recuperación
-packages/staff  caja: dispositivos autorizados, turnos con PIN, equipo y ficha del cliente
+packages/staff  caja: dispositivos autorizados, turnos con PIN, equipo por sucursal y ficha del cliente
+packages/business panel: marca y logo, sucursales, clientes, topes del plan y alta de negocios (superadmin)
+packages/storage archivos (logos): disco local / memoria; R2 en producción
 packages/mail   correo (Mailpit en local, memoria en tests)
 packages/db     esquema Drizzle, migraciones, RLS, seed
 packages/wallet interfaz WalletProvider, Wallet simulado, enlace Google Wallet
@@ -87,3 +89,5 @@ docs/           arquitectura, backlog, decisiones y reportes
 - Toda operación que cambia saldo exige la cabecera `Idempotency-Key` (una por intención, no por clic).
 - Las rutas de caja (`/v1/staff/*`) toman el negocio del dispositivo, nunca de la URL; toda ruta nueva va en `apps/api/src/staff.int.test.ts` (un test falla si falta).
 - Tokens, secretos y PIN se guardan solo como hash (SHA-256 para tokens de 128 bits, argon2id para PIN).
+- Los archivos subidos se validan por contenido (PNG, JPG, WebP; nunca SVG) y se sirven con `nosniff`.
+- La caja necesita internet: no hay modo sin conexión en el MVP ([ADR 0004](docs/decisiones/0004-caja-requiere-conexion.md)).

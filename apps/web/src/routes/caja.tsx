@@ -177,7 +177,7 @@ export function CajaPage() {
         <div className="mt-6" data-testid="device-not-authorized">
           <Alert tone="info">
             Este dispositivo todavía no está autorizado como caja. Pide al dueño que lo autorice desde su
-            panel (Caja → Autorizar dispositivo) y escanea el QR con este celular.
+            panel (Cajas → Generar QR) y escanea el QR con este celular.
           </Alert>
         </div>
         <PoweredBy />
@@ -193,8 +193,47 @@ export function CajaPage() {
       </Page>
     );
   if (!device) return <Spinner />;
-  if (!device.shift) return <Login device={device} onDone={load} />;
-  return <Register device={device} onShiftEnded={load} />;
+  return (
+    <>
+      <OfflineBanner />
+      {device.shift ? (
+        <Register device={device} onShiftEnded={load} />
+      ) : (
+        <Login device={device} onDone={load} />
+      )}
+    </>
+  );
+}
+
+/**
+ * La caja necesita conexión (no hay modo sin conexión en el MVP: ADR 0004). Si el celular pierde la red,
+ * se avisa de inmediato para que nadie crea que sumó una visita que no llegó al servidor.
+ */
+function OfflineBanner() {
+  const [online, setOnline] = useState(() => navigator.onLine);
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+  if (online) return null;
+  return (
+    <div
+      role="alert"
+      data-testid="offline-banner"
+      className="sticky top-0 z-20 bg-red-700 px-4 py-3 text-center text-white"
+    >
+      <p className="font-semibold">Sin conexión a internet</p>
+      <p className="text-sm">
+        La caja no puede sumar ni canjear hasta que vuelva la señal. Nada se registra sin conexión.
+      </p>
+    </div>
+  );
 }
 
 function Login({ device, onDone }: { device: RegisterDevice; onDone: () => Promise<void> }) {
@@ -237,9 +276,7 @@ function Login({ device, onDone }: { device: RegisterDevice; onDone: () => Promi
             </BigButton>
           ))}
           {device.people.length === 0 && (
-            <Alert tone="info">
-              Nadie tiene PIN todavía. El dueño lo define en su panel (Caja → Equipo).
-            </Alert>
+            <Alert tone="info">Nadie tiene PIN todavía. El dueño lo define en su panel (Equipo).</Alert>
           )}
         </section>
       ) : (
@@ -484,6 +521,7 @@ function Customer({
   onScanNext: () => void;
 }) {
   const isStamps = view.program.mode === 'stamps';
+  const blocked = view.status === 'blocked';
   const [amount, setAmount] = useState('');
   const [limit, setLimit] = useState<{ message: string; amount: string | null } | null>(null);
   const [overrideError, setOverrideError] = useState<string | null>(null);
@@ -554,7 +592,17 @@ function Customer({
         {view.firstVisit && <p className="mt-1 text-sm font-medium text-emerald-700">Primera visita</p>}
       </div>
 
+      {blocked && (
+        <div className="rounded-2xl bg-red-50 p-4 text-red-800" role="alert" data-testid="customer-blocked">
+          <p className="font-semibold">Cliente bloqueado por el negocio</p>
+          <p className="text-sm">
+            No se puede sumar ni canjear. Si hay un error, que el dueño lo desbloquee desde su panel.
+          </p>
+        </div>
+      )}
+
       {!limit &&
+        !blocked &&
         (isStamps ? (
           <BigButton tone="green" disabled={busy} onClick={() => void earn()} data-testid="earn">
             {busy ? 'Registrando…' : 'SUMAR VISITA'}
@@ -606,7 +654,7 @@ function Customer({
         </div>
       )}
 
-      {view.availableRewards.length > 0 && (
+      {!blocked && view.availableRewards.length > 0 && (
         <div className="space-y-2">
           <p className="font-semibold">Premios para canjear</p>
           {view.availableRewards.map((r) => (
@@ -621,7 +669,7 @@ function Customer({
           ))}
         </div>
       )}
-      {view.catalog.some((r) => r.affordable) && (
+      {!blocked && view.catalog.some((r) => r.affordable) && (
         <div className="space-y-2">
           <p className="font-semibold">Puede canjear</p>
           {view.catalog

@@ -1,9 +1,12 @@
 import { serve } from '@hono/node-server';
-import { apiEnvSchema, parseEnv } from '@aiment/config';
+import { apiEnvSchema, parseEnv, repoRoot } from '@aiment/config';
 import { createDb } from '@aiment/db';
 import { createMailerFromEnv } from '@aiment/mail';
+import { LocalDiskStorage } from '@aiment/storage';
 import { randomBytes } from 'node:crypto';
+import { isAbsolute, join } from 'node:path';
 import { createApp } from './app';
+import { createSupabaseAuthAdmin } from './auth/admin';
 import { createSupabaseVerifier } from './auth/verifier';
 
 const env = parseEnv(apiEnvSchema);
@@ -25,6 +28,12 @@ const app = createApp({
     },
   },
   mailer: createMailerFromEnv(),
+  storage: new LocalDiskStorage(
+    isAbsolute(env.STORAGE_DIR) ? env.STORAGE_DIR : join(repoRoot, env.STORAGE_DIR),
+  ),
+  authAdmin: env.SUPABASE_SECRET_KEY
+    ? createSupabaseAuthAdmin({ supabaseUrl: env.SUPABASE_URL, secretKey: env.SUPABASE_SECRET_KEY })
+    : null,
 });
 
 const server = serve({ fetch: app.fetch, port: env.API_PORT }, (info) =>

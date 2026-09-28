@@ -43,6 +43,19 @@ export const goRoutes = new Hono<AppEnv>().get('/:slug', async (c) => {
 });
 
 export const publicRoutes = new Hono<AppEnv>()
+  // Logos del negocio (clave aleatoria por subida → se pueden cachear para siempre).
+  .get('/files/:folder/:org/:file', async (c) => {
+    const { folder, org, file } = c.req.param();
+    const obj = await c.var.deps.storage.get(`${folder}/${org}/${file}`);
+    if (!obj) return c.json({ error: { code: 'not_found', message: 'Archivo no encontrado' } }, 404);
+    c.header('Content-Type', obj.contentType);
+    c.header('Cache-Control', 'public, max-age=31536000, immutable');
+    c.header('X-Content-Type-Options', 'nosniff');
+    c.header('Content-Security-Policy', "default-src 'none'; img-src 'self'");
+    c.header('Cross-Origin-Resource-Policy', 'same-site');
+    return c.body(new Uint8Array(obj.bytes));
+  })
+
   .get('/join/:code', async (c) => {
     limit(c, 'publicRead', 60_000);
     return c.json(await getJoinInfo(c.var.deps.db, c.req.param('code')));

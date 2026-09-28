@@ -11,6 +11,9 @@ importers:
       '@aiment/api':
         specifier: workspace:*
         version: link:apps/api
+      '@aiment/business':
+        specifier: workspace:*
+        version: link:packages/business
       '@aiment/config':
         specifier: workspace:*
         version: link:packages/config
@@ -26,6 +29,9 @@ importers:
       '@aiment/ledger':
         specifier: workspace:*
         version: link:packages/ledger
+      '@aiment/mail':
+        specifier: workspace:*
+        version: link:packages/mail
       '@aiment/staff':
         specifier: workspace:*
         version: link:packages/staff
@@ -104,6 +110,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@aiment/business':
+        specifier: workspace:*
+        version: link:../../packages/business
       '@aiment/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -125,9 +134,15 @@ importers:
       '@aiment/staff':
         specifier: workspace:*
         version: link:../../packages/staff
+      '@aiment/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@hono/node-server':
         specifier: ^2.1.1
         version: 2.1.1(hono@4.13.9)
+      '@supabase/supabase-js':
+        specifier: ^2.117.2
+        version: 2.117.2
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(pg@8.23.0)(postgres@3.4.9)
@@ -143,6 +158,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@aiment/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@supabase/supabase-js':
         specifier: ^2.117.2
         version: 2.117.2
@@ -208,6 +226,30 @@ importers:
       '@aiment/ledger':
         specifier: workspace:*
         version: link:../../packages/ledger
+
+  packages/business:
+    dependencies:
+      '@aiment/core':
+        specifier: workspace:*
+        version: link:../core
+      '@aiment/db':
+        specifier: workspace:*
+        version: link:../db
+      '@aiment/enrollment':
+        specifier: workspace:*
+        version: link:../enrollment
+      '@aiment/mail':
+        specifier: workspace:*
+        version: link:../mail
+      '@aiment/storage':
+        specifier: workspace:*
+        version: link:../storage
+      drizzle-orm:
+        specifier: ^0.45.3
+        version: 0.45.3(pg@8.23.0)(postgres@3.4.9)
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
   packages/config:
     dependencies:
@@ -285,6 +327,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(pg@8.23.0)(postgres@3.4.9)
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
   packages/mail:
     dependencies:
@@ -298,6 +343,9 @@ importers:
 
   packages/staff:
     dependencies:
+      '@aiment/business':
+        specifier: workspace:*
+        version: link:../business
       '@aiment/core':
         specifier: workspace:*
         version: link:../core
@@ -323,6 +371,8 @@ importers:
       '@types/qrcode':
         specifier: ^1.5.6
         version: 1.5.6
+
+  packages/storage: {}
 
   packages/wallet:
     dependencies:

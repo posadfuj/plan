@@ -92,7 +92,14 @@ export function JoinPage() {
         logoUrl={branding.logoUrl}
         subtitle={info.program.name}
       />
+      {branding.tagline && <p className="mt-2 text-center text-sm text-gray-600">{branding.tagline}</p>}
       <p className="mt-4 text-lg font-medium">{benefit(info)}</p>
+      {branding.conditions && (
+        <details className="mt-2 text-sm text-gray-600">
+          <summary className="cursor-pointer underline">Condiciones del programa</summary>
+          <p className="mt-1 whitespace-pre-line">{branding.conditions}</p>
+        </details>
+      )}
       <p className="mt-1 text-sm text-gray-600">Regístrate en 30 segundos. Tu tarjeta queda en tu celular.</p>
 
       {existing && (

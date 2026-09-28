@@ -203,6 +203,7 @@ export async function listDevices(db: Db, orgId: string) {
       .select({
         id: workerDevices.id,
         name: workerDevices.name,
+        branchId: workerDevices.branchId,
         branch: branches.name,
         createdAt: workerDevices.createdAt,
         lastSeenAt: workerDevices.lastSeenAt,

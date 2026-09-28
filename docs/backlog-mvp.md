@@ -99,16 +99,21 @@ Estado: **aprobada** (salvo la prueba en celulares reales). Detalle en [`semana-
 
 **Demostrable:** `pnpm demo` → 14/14 en celulares emulados (caja con cámara simulada + flujo del cliente).
 
-## Semana 5: Panel del dueño y superadmin
+## Semana 5: Panel del dueño y superadmin ✔
 
-- [ ] Marca: logo (subida a MinIO), colores con chequeo de contraste, textos, condiciones y contacto.
-- [ ] Programa: plantillas por rubro como presets editables; regla, meta, premios, bienvenida, límites y expiración (desactivada).
-- [ ] Vista previa de la tarjeta web.
-- [ ] Clientes: lista, búsqueda, ficha, ajuste con motivo, bloqueo, rotación de la URL de la tarjeta (ya existe al recuperar) y baja (anonimización).
-- [ ] Trabajadores y dispositivos (pantalla completa; la API y una sección mínima existen desde la semana 4), sucursal por trabajador y tope de trabajadores del plan.
-- [ ] Superadmin: crear negocio (+ sucursal + invitación al dueño), estados `draft → live → suspended`, uso y auditoría.
+Estado: **cerrada, pendiente de aprobación** (salvo la prueba en celulares reales). Detalle en [`semana-5-reporte.md`](./semana-5-reporte.md).
 
-**Demostrable:** se configura un negocio ficticio nuevo, de cero a su primera tarjeta, **sin tocar código**, en menos de 15 minutos.
+- [x] Marca: logo (almacenamiento local con interfaz S3; R2 en la semana 9), colores con chequeo de contraste, textos, condiciones y contacto.
+- [x] Programa: plantillas por rubro como presets editables; regla, meta, premios, bienvenida, límites y expiración (desactivada).
+- [x] Vista previa de la tarjeta web (el mismo componente que ve el cliente).
+- [x] Clientes: lista, búsqueda, ficha, ajuste con motivo, anulación, bloqueo, invalidar la URL de la tarjeta, QR de recuperación y baja (anonimización).
+- [x] Trabajadores y dispositivos (pantalla completa), **sucursal por trabajador con interfaz**, tope de trabajadores y de sucursales del plan.
+- [x] Sucursales: alta, edición, QR/NFC propio, desactivación y reactivación.
+- [x] Superadmin: crear negocio (+ sucursal + invitación al dueño), estados `draft → live → suspended`, plan, uso y auditoría.
+- [x] Caja sin modo offline documentada ([ADR 0004](./decisiones/0004-caja-requiere-conexion.md)) y avisada en la interfaz.
+- [ ] **Prueba en celulares reales** (cliente, caja y panel): pendiente del fundador (el entorno de la sesión bloquea el túnel).
+
+**Demostrable:** `pnpm demo` → 18/18: un negocio ficticio nuevo, de cero a su primera tarjeta y su primera visita en caja, **sin tocar código** (13–15 s automatizado; falta medirlo con una persona).
 
 ## Semana 6: Reportes, automatizaciones y hardening
 

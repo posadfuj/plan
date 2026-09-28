@@ -42,6 +42,7 @@ export const teamRoutes = new Hono<AppEnv>()
     const person = await createStaffMember(c.var.deps.db, c.var.orgId, manager(c), {
       name: b.name,
       pin: b.pin,
+      branchIds: b.branchIds,
     });
     return c.json({ person }, 201);
   })

@@ -176,6 +176,7 @@ export async function resolveShift(
         name: organizationUsers.displayName,
         role: organizationUsers.role,
         expiresAt: staffSessions.expiresAt,
+        branchIds: organizationUsers.branchIds,
       })
       .from(staffSessions)
       .innerJoin(organizationUsers, eq(organizationUsers.id, staffSessions.organizationUserId))
@@ -190,7 +191,11 @@ export async function resolveShift(
         ),
       ),
   );
-  return row ?? null;
+  if (!row) return null;
+  // Si el dueño le quitó esta sucursal, el turno deja de valer aunque no haya vencido.
+  const { branchIds, ...shift } = row;
+  if (branchIds?.length && !branchIds.includes(device.branchId)) return null;
+  return shift;
 }
 
 /** "Cerrar turno". */

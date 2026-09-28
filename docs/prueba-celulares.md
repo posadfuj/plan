@@ -1,4 +1,4 @@
-# Prueba en celulares reales (semanas 3 y 4)
+# Prueba en celulares reales (semanas 3, 4 y 5)
 
 Las pruebas automáticas emulan un Android (Pixel 7) y un iPhone (14) en Chromium. Esta lista es para confirmar lo mismo en **teléfonos reales**, con su cámara, su lector NFC y su navegador (Safari en iPhone, Chrome en Android).
 
@@ -12,7 +12,7 @@ pnpm local:tunnel       # abre un túnel HTTPS y muestra un QR en la terminal
 - El túnel es temporal (URL `https://….trycloudflare.com`) y funciona mientras la terminal esté abierta.
 - Si `pnpm dev` está corriendo, detenlo antes: el túnel levanta la API y la PWA por su cuenta.
 - Los correos de recuperación llegan a Mailpit: <http://127.0.0.1:54324>.
-- Credenciales del panel (datos de prueba): `dueno.barberia@aiment.test` / `aiment-demo-2026`.
+- Credenciales del panel (datos de prueba): `dueno.barberia@aiment.test` / `aiment-demo-2026`. Panel maestro: `superadmin@aiment.test` (misma contraseña).
 - PIN de caja de los trabajadores del seed (Jhon, Mario): `2580`. PIN del dueño (autoriza excepciones): `1470`.
 - Necesitas **dos teléfonos**: uno hace de cliente y otro de caja (idealmente un Android de gama media como caja).
 
@@ -40,7 +40,7 @@ Anota por cada teléfono: marca, modelo, gama, sistema y navegador.
 | #   | Paso                                                                                                 | Resultado esperado                                                           | iPhone | Android medio | Android bajo |
 | --- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------ | ------------- | ------------ |
 | C1  | En el celular de caja abrir `…/caja`                                                                 | "Este dispositivo todavía no está autorizado"                                |        |               |              |
-| C2  | Panel del dueño → Caja → nombre del dispositivo → **Generar QR**; escanearlo con el celular de caja  | "Quedó autorizado"; aparece "¿Quién atiende?"                                |        |               |              |
+| C2  | Panel del dueño → Cajas → nombre del dispositivo → **Generar QR**; escanearlo con el celular de caja | "Quedó autorizado"; aparece "¿Quién atiende?"                                |        |               |              |
 | C3  | Escanear el **mismo** QR con otro teléfono                                                           | "Este QR de autorización ya no es válido"                                    |        |               |              |
 | C4  | Elegir "Jhon (caja)" y escribir un PIN equivocado 5 veces                                            | Avisa los intentos restantes y al 5.º bloquea 15 minutos                     |        |               |              |
 | C5  | Entrar con "Mario (caja)" y PIN `2580`                                                               | Pantalla con **ESCANEAR CLIENTE** grande                                     |        |               |              |
@@ -50,9 +50,28 @@ Anota por cada teléfono: marca, modelo, gama, sistema y navegador.
 | C9  | **Anular** el último movimiento (elegir un motivo)                                                   | "Anulado"; el saldo vuelve atrás                                             |        |               |              |
 | C10 | Buscar al cliente por celular y por el código de 6 letras de su tarjeta                              | Abre la misma ficha                                                          |        |               |              |
 | C11 | "El cliente perdió su tarjeta: QR de recuperación" y escanearlo con un tercer navegador del cliente  | Abre la tarjeta; en el celular anterior la URL vieja dice "ya no funciona"   |        |               |              |
-| C12 | Panel → Caja → **Revocar** el dispositivo                                                            | La caja vuelve a "no está autorizado" en la siguiente acción                 |        |               |              |
+| C12 | Panel → Cajas → **Revocar** el dispositivo                                                           | La caja vuelve a "no está autorizado" en la siguiente acción                 |        |               |              |
 | C13 | Medir con un cronómetro: escanear → sumar → confirmación                                             | Menos de 5 s por operación                                                   |        |               |              |
 | C14 | Usar la caja con una sola mano (pulgar)                                                              | Todos los botones se alcanzan y se presionan sin errores                     |        |               |              |
+| C15 | Con la caja abierta, activar el **modo avión**                                                       | Franja roja "Sin conexión a internet"; al volver la señal desaparece         |        |               |              |
+
+## Panel del dueño (semana 5)
+
+Hazlo desde el **celular del dueño** (es donde lo usará). Si puedes, crea el negocio desde cero: en la computadora abre `…/admin`, crea un negocio con **tu correo** y abre la invitación que llega a Mailpit desde el celular.
+
+| #   | Paso                                                                                          | Resultado esperado                                                                                    | iPhone | Android medio | Android bajo |
+| --- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------ | ------------- | ------------ |
+| P1  | Abrir el enlace de la invitación y crear la contraseña                                        | Entra al panel; el enlace no sirve dos veces                                                          |        |               |              |
+| P2  | Marca → **Subir logo** → elegir una **foto de la galería** (y otra vez con la **cámara**)     | Sube en pocos segundos; el logo se ve en la vista previa. En iPhone, las fotos HEIC también funcionan |        |               |              |
+| P3  | Elegir un color claro (amarillo pastel)                                                       | Avisa que los sellos se verán poco y ofrece un tono más oscuro                                        |        |               |              |
+| P4  | Escribir frase, condiciones y contacto → Guardar                                              | La vista previa y la tarjeta real del cliente muestran lo mismo                                       |        |               |              |
+| P5  | Programa → cambiar la meta y el premio → Guardar                                              | "Regla guardada"; la tarjeta del cliente muestra la meta nueva                                        |        |               |              |
+| P6  | Sucursales → completar dirección → **Descargar QR** e imprimirlo o mostrarlo en otra pantalla | El PNG se descarga; escaneado abre el registro del negocio                                            |        |               |              |
+| P7  | Equipo → agregar trabajador con PIN; si hay 2 sucursales, "Solo en…" una                      | Aparece en la caja de esa sucursal y **no** en la de la otra                                          |        |               |              |
+| P8  | Cajas → Generar QR → escanearlo con el celular de caja                                        | Queda autorizada en esa sucursal                                                                      |        |               |              |
+| P9  | Clientes → buscar por nombre y por celular → abrir la ficha                                   | Saldo, historial con quién atendió                                                                    |        |               |              |
+| P10 | Bloquear al cliente → revisar su tarjeta y la caja → Desbloquear                              | Tarjeta "pausada" sin QR; la caja no suma; al desbloquear todo vuelve                                 |        |               |              |
+| P11 | Navegar el panel con una mano; girar el celular                                               | Menú de secciones se desliza; nada cortado; botones fáciles de tocar                                  |        |               |              |
 
 **Importante:** la cámara del navegador solo funciona por `https://` (el túnel) o en `localhost`. Si abres la caja por la IP de la laptop en el Wi-Fi (`http://192.168…`), la cámara no abrirá: usa el túnel o la búsqueda por celular.
 

@@ -8,6 +8,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@aiment/business": "workspace:*",
     "@aiment/config": "workspace:*",
     "@aiment/core": "workspace:*",
     "@aiment/db": "workspace:*",
@@ -15,7 +16,9 @@
     "@aiment/ledger": "workspace:*",
     "@aiment/mail": "workspace:*",
     "@aiment/staff": "workspace:*",
+    "@aiment/storage": "workspace:*",
     "@hono/node-server": "^2.1.1",
+    "@supabase/supabase-js": "^2.117.2",
     "drizzle-orm": "^0.45.3",
     "hono": "^4.13.9",
     "jose": "^6.2.12",
