@@ -47,7 +47,7 @@ Además, el panel mínimo muestra el **QR de la sucursal** (descarga en PNG) y l
 | Sin membresías duplicadas                             | El mismo celular en otro formato no crea otra. **5 registros simultáneos** del mismo celular → 1 cliente y 1 membresía. La recuperación nunca crea nada                                                                                                                                    |
 | Enlaces de recuperación seguros                       | Un solo uso, vencen (30 min por correo, 10 min en local), se guarda solo su hash, 5 aperturas simultáneas → solo 1 funciona, máximo 3 correos por hora por cliente, respuesta neutra (no revela quién es cliente) y el enlace usa la URL configurada aunque la petición traiga otro `Host` |
 
-**CI:** se agregó un job de E2E en GitHub Actions (Postgres + Mailpit + API + PWA compilada + Playwright). Lo simulé en local con una base limpia: 6/6. Los 2 casos del panel se omiten en CI porque ahí no hay Supabase Auth; esos casos quedan cubiertos por las pruebas de integración.
+**CI:** verde en GitHub Actions ([run #6](https://github.com/posadfuj/plan/actions/runs/36390498558)), incluido el **nuevo job de E2E** (Postgres + Mailpit + API + PWA compilada + Playwright en Android e iPhone). En CI los 2 casos del panel se omiten porque ahí no hay Supabase Auth; esos casos quedan cubiertos por las pruebas de integración y pasan en local con login real (8/8).
 
 ## 3. Prueba en celulares reales
 
