@@ -105,6 +105,7 @@ const ORG_PATTERNS = [
   'POST /v1/orgs/:orgId/branches/:branchId/deactivate',
   'POST /v1/orgs/:orgId/branches/:branchId/reactivate',
   'POST /v1/orgs/:orgId/customers/:customerId/anonymize',
+  'PATCH /v1/orgs/:orgId/customers/:customerId',
   'POST /v1/orgs/:orgId/memberships/:membershipId/block',
   'POST /v1/orgs/:orgId/memberships/:membershipId/unblock',
   'POST /v1/orgs/:orgId/memberships/:membershipId/rotate-card',
@@ -346,6 +347,13 @@ beforeAll(async () => {
       method: 'POST',
       path: `${base}/branches/${A.branchId}/reactivate`,
       pattern: 'POST /v1/orgs/:orgId/branches/:branchId/reactivate',
+    },
+    // Sin motivo → 422 (no se modifica nada).
+    {
+      method: 'PATCH',
+      path: `${base}/customers/${tempCustomer}`,
+      pattern: 'PATCH /v1/orgs/:orgId/customers/:customerId',
+      body: { fullName: 'Intento De Cambio' },
     },
     // Sin la palabra BAJA → 422 (no se anonimiza a nadie).
     {

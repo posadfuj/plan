@@ -3,7 +3,8 @@
  * (anonimización). Sumar, canjear, ajustar y anular usan @aiment/ledger (mismo servicio que la caja).
  */
 import { schema, withTenantTx, type Db, type Tx } from '@aiment/db';
-import { hashToken, newToken } from '@aiment/enrollment';
+import { maskPhone, normalizePhone } from '@aiment/core';
+import { CUSTOMER_NAME_RE, hashToken, newToken } from '@aiment/enrollment';
 import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { BusinessError, notFound, type Editor } from './errors';
@@ -265,6 +266,127 @@ export async function rotateCardUrl(db: Db, orgId: string, editor: Editor, membe
     });
     return { id: m.id, rotated: true };
   });
+}
+
+function isPhoneTaken(err: unknown): boolean {
+  let e: unknown = err;
+  for (let i = 0; i < 3 && e; i++) {
+    const x = e as { code?: string; constraint_name?: string };
+    if (x.code === '23505' && x.constraint_name === 'customers_org_phone') return true;
+    e = (e as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+const phoneTaken = () =>
+  new BusinessError(
+    409,
+    'phone_in_use',
+    'Ese celular ya pertenece a otro cliente de este negocio. No se pueden unir tarjetas desde aquí.',
+  );
+
+/**
+ * Corrige el nombre y/o el celular del cliente desde su ficha.
+ * - Solo cambia los datos del cliente: la membresía, sus tokens, el saldo y el historial no se tocan.
+ * - Motivo obligatorio y auditoría. La auditoría no se puede borrar, así que NO guarda el nombre ni el
+ *   celular completos (quedarían después de una baja): guarda qué cambió y el celular enmascarado.
+ * - Un celular que ya tiene otro cliente del negocio se rechaza (también si dos ediciones compiten).
+ */
+export async function updateCustomer(
+  db: Db,
+  orgId: string,
+  editor: Editor,
+  customerId: string,
+  input: { fullName?: unknown; phone?: unknown; reason?: unknown },
+) {
+  const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
+  if (reason.length < 5 || reason.length > 300)
+    throw new BusinessError(422, 'reason_required', 'Indica el motivo del cambio (mínimo 5 caracteres)');
+  let fullName: string | undefined;
+  if (input.fullName !== undefined) {
+    fullName = String(input.fullName).trim().replace(/\s+/g, ' ');
+    if (!CUSTOMER_NAME_RE.test(fullName))
+      throw new BusinessError(422, 'invalid_name', 'Escribe el nombre con letras (2 a 80 caracteres)');
+  }
+  let phone: string | undefined;
+  if (input.phone !== undefined) {
+    phone = normalizePhone(String(input.phone)) ?? undefined;
+    if (!phone)
+      throw new BusinessError(422, 'invalid_phone', 'Escribe un celular válido (9 dígitos, empieza con 9)');
+  }
+  if (fullName === undefined && phone === undefined)
+    throw new BusinessError(422, 'nothing_to_change', 'Indica el nombre o el celular a corregir');
+
+  try {
+    return await withTenantTx(db, orgId, async (tx) => {
+      const [c] = await tx
+        .select({ id: customers.id, fullName: customers.fullName, phone: customers.phoneE164 })
+        .from(customers)
+        .where(
+          and(
+            eq(customers.id, customerId),
+            eq(customers.organizationId, orgId),
+            eq(customers.status, 'active'),
+          ),
+        )
+        .for('update');
+      if (!c) throw notFound();
+      const changes: { fullName?: string; phoneE164?: string } = {};
+      if (fullName !== undefined && fullName !== c.fullName) changes.fullName = fullName;
+      if (phone !== undefined && phone !== c.phone) changes.phoneE164 = phone;
+      if (!Object.keys(changes).length) throw new BusinessError(409, 'no_change', 'Los datos ya son esos');
+
+      if (changes.phoneE164) {
+        const [other] = await tx
+          .select({ id: customers.id })
+          .from(customers)
+          .where(
+            and(
+              eq(customers.organizationId, orgId),
+              eq(customers.phoneE164, changes.phoneE164),
+              eq(customers.status, 'active'),
+            ),
+          );
+        if (other) throw phoneTaken();
+      }
+
+      await tx.update(customers).set(changes).where(eq(customers.id, c.id));
+      const fields = [changes.fullName !== undefined && 'fullName', changes.phoneE164 && 'phone'].filter(
+        Boolean,
+      );
+      await tx.insert(auditLogs).values({
+        organizationId: orgId,
+        actorType: editor.actorType,
+        actorId: editor.orgUserId,
+        action: 'customer.updated',
+        entityType: 'customer',
+        entityId: c.id,
+        before: changes.phoneE164 && c.phone ? { phone: maskPhone(c.phone) } : null,
+        after: { fields, reason, ...(changes.phoneE164 ? { phone: maskPhone(changes.phoneE164) } : {}) },
+      });
+      // El nombre se muestra en la tarjeta web y en los pases: se resincronizan.
+      const ms = await tx
+        .select({ id: memberships.id })
+        .from(memberships)
+        .where(and(eq(memberships.customerId, c.id), eq(memberships.organizationId, orgId)));
+      for (const m of ms)
+        await tx.insert(eventOutbox).values({
+          organizationId: orgId,
+          type: 'membership.updated',
+          aggregateId: m.id,
+          payload: { fields },
+        });
+
+      const [updated] = await tx
+        .select({ id: customers.id, fullName: customers.fullName, phone: customers.phoneE164 })
+        .from(customers)
+        .where(eq(customers.id, c.id));
+      return { customer: updated!, changed: fields };
+    });
+  } catch (err) {
+    if (isPhoneTaken(err)) throw phoneTaken();
+    throw err;
+  }
 }
 
 /**

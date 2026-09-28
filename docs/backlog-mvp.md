@@ -101,7 +101,7 @@ Estado: **aprobada** (salvo la prueba en celulares reales). Detalle en [`semana-
 
 ## Semana 5: Panel del dueño y superadmin ✔
 
-Estado: **cerrada, pendiente de aprobación** (salvo la prueba en celulares reales). Detalle en [`semana-5-reporte.md`](./semana-5-reporte.md).
+Estado: **aprobada**. Agregado tras la aprobación: editar nombre y celular del cliente (#23). Invitar admins (#22) pasa a una fase posterior. Pendiente antes de la semana 6: prueba en celulares físicos. Detalle en [`semana-5-reporte.md`](./semana-5-reporte.md).
 
 - [x] Marca: logo (almacenamiento local con interfaz S3; R2 en la semana 9), colores con chequeo de contraste, textos, condiciones y contacto.
 - [x] Programa: plantillas por rubro como presets editables; regla, meta, premios, bienvenida, límites y expiración (desactivada).

@@ -81,7 +81,7 @@ Capturas: `e2e/artifacts/*-panel-*.png`. Te envío algunas con este reporte.
 
 Para destrabarlo hay dos caminos:
 
-1. **En tu computadora** (recomendado): `pnpm local:setup` + `pnpm local:tunnel` y la lista [`prueba-celulares.md`](./prueba-celulares.md): 12 pasos del cliente, 15 de caja (C1–C15) y **11 del panel (P1–P11)**, con columnas para iPhone, Android medio y Android bajo.
+1. **En tu computadora** (recomendado): `pnpm local:setup` + `pnpm local:tunnel` y la lista [`prueba-celulares.md`](./prueba-celulares.md): 12 pasos del cliente, 15 de caja (C1–C15) y **13 del panel (P1–P13)** y 5 sin conexión (O1–O5), con columnas para iPhone, Android medio y Android bajo.
 2. **En este entorno**: permitir `trycloudflare.com` en el acceso de red del entorno (menú del entorno en la barra de título de la sesión → Editar → acceso de red) y volver a intentarlo aquí.
 
 Lo que la emulación **no** puede confirmar y ya se preparó en el código:
@@ -155,7 +155,7 @@ Lo que la emulación **no** puede confirmar y ya se preparó en el código:
 | 7   | Límite de intentos en memoria (una sola instancia)                              | 9                                |
 | 8   | Turnstile (anti-bots) en el registro                                            | 9                                |
 | 10  | Un solo checkbox para términos **y** privacidad                                 | Pendiente de tu validación legal |
-| 12  | Tailwind sin shadcn/ui: el panel se hizo con componentes propios simples        | Propongo cerrarla (ver abajo)    |
+| 12  | Tailwind sin shadcn/ui: el panel se hizo con componentes propios simples        | **Cerrada** por el fundador      |
 | 13  | La página del QR de caja muestra el nombre del negocio (por diseño)             | —                                |
 | 14  | Rutas de caja por `membershipId`                                                | Documentado                      |
 | 16  | Intentos del PIN del dueño en caja limitados por dispositivo                    | 6 (hardening)                    |
@@ -167,13 +167,13 @@ Lo que la emulación **no** puede confirmar y ya se preparó en el código:
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------- |
 | 20  | Los logos se guardan en disco local (`.data/storage`); en producción, R2/S3                                                              | La interfaz ya existe; falta el conector al publicar. Los logos reemplazados no se borran | 9                |
 | 21  | Al dar de baja a un cliente, sus pases de Wallet se marcan revocados y se emite `membership.closed`, pero aún no se avisa a Apple/Google | Los proveedores reales llegan en las semanas 7–8                                          | 7–8              |
-| 22  | Invitar administradores (rol admin) desde el panel                                                                                       | No estaba en el backlog del MVP; hoy lo hace Aiment directamente en la base               | Tu decisión      |
-| 23  | Corregir nombre o celular de un cliente desde la ficha                                                                                   | No estaba en el backlog; hoy se hace con baja + nuevo registro o con soporte              | Tu decisión      |
+| 22  | Invitar administradores (rol admin) desde el panel                                                                                       | Fuera del MVP (decisión del fundador); hoy lo hace Aiment directamente en la base         | Fase posterior   |
+| 23  | Corregir nombre o celular de un cliente desde la ficha                                                                                   | **Hecha** tras la aprobación: con motivo y auditoría, sin duplicados, misma membresía     | Hecha            |
 | 24  | Configurar el TOTP del superadmin desde la interfaz (hoy solo se verifica el código)                                                     | En local el TOTP no es obligatorio; en producción se configura una vez                    | 9                |
 | 25  | Cambiar de plantilla (sellos ↔ puntos) solo antes del primer cliente                                                                     | Con clientes cambiaría el valor de lo ya ganado. Es a propósito                           | —                |
 | 26  | La meta de "< 15 minutos" se midió con la prueba automática (13–15 s), no con una persona                                                | Requiere una persona real                                                                 | Contigo / piloto |
 
-**Sobre la #12 (shadcn/ui):** el panel quedó con un conjunto chico de componentes propios (botones, campos, tarjetas, etiquetas) sobre Tailwind, consistente con la tarjeta y la caja. Incorporar shadcn/ui ahora agregaría dependencias sin cambio visible para el dueño. **Propongo cerrarla** y dejar la decisión de diseño para cuando haya diseñador; si prefieres mantener shadcn/ui en la arquitectura, lo agendo.
+**Sobre la #12 (shadcn/ui):** el panel quedó con un conjunto chico de componentes propios (botones, campos, tarjetas, etiquetas) sobre Tailwind, consistente con la tarjeta y la caja. Incorporar shadcn/ui ahora agregaría dependencias sin cambio visible para el dueño. Propuse cerrarla y **el fundador la cerró** al aprobar la semana 5: no se migran componentes que ya funcionan si no hay una mejora visible para el usuario.
 
 ## 7. Cambios técnicos para la ingeniera
 
@@ -184,3 +184,13 @@ Lo que la emulación **no** puede confirmar y ya se preparó en el código:
 - **PWA:** `apps/web/src/panel/` (una sección por archivo), `/panel/:seccion`, `/panel/acceso`, `/admin`. La tarjeta del cliente es un componente (`CardView`) que usa también la vista previa del panel.
 - **Datos de prueba:** la barbería pasa al plan **Pro** (10 trabajadores); la veterinaria sigue en **Start** (1 sucursal, 3 trabajadores) para probar los topes.
 - **Variables nuevas:** `STORAGE_DIR` (opcional, por defecto `.data/storage`).
+
+## 8. Después de la aprobación: editar datos del cliente (#23)
+
+Pedido del fundador al aprobar la semana 5. En la ficha del cliente, **Editar datos** cambia el nombre y/o el celular:
+
+- **Motivo obligatorio** (5–300 caracteres) y **auditoría** `customer.updated` con quién, cuándo, qué campos y el motivo. La auditoría es inmutable, así que guarda el celular **enmascarado** y no el nombre (para que una baja posterior no deje datos personales).
+- **Sin duplicados:** si el celular ya lo usa otro cliente del negocio → "Ese celular ya lo usa otro cliente" (409). Dos ediciones simultáneas al mismo celular: una pasa y la otra recibe 409 (lo garantiza el índice único). El mismo celular sí puede estar en **otro** negocio.
+- **No rompe nada:** solo cambia la fila del cliente. La membresía, el código corto, los tokens (la URL de la tarjeta y el QR siguen iguales), el saldo y el historial no cambian. Se emite `membership.updated` para que los pases se actualicen cuando llegue Wallet.
+- Permiso `customers.manage` (dueño y admin). Otro negocio, el superadmin o un cliente dado de baja → 404.
+- Pruebas: 9 de integración (`apps/api/src/customer-edit.int.test.ts`), el registro de aislamiento y un paso E2E en Android e iPhone. Total: **235 tests + 20 E2E**.

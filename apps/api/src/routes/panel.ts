@@ -17,6 +17,7 @@ import {
   setLogo,
   setMembershipBlocked,
   updateBranch,
+  updateCustomer,
   updateBranding,
   type Editor,
 } from '@aiment/business';
@@ -123,6 +124,18 @@ export const panelRoutes = new Hono<AppEnv>()
     c.header('Cache-Control', 'no-store');
     return c.json(await getCustomer(c.var.deps.db, c.var.orgId, uuidParam(c, 'customerId')));
   })
+
+  .patch('/customers/:customerId', requirePermission('customers.manage'), async (c) =>
+    c.json(
+      await updateCustomer(
+        c.var.deps.db,
+        c.var.orgId,
+        editor(c),
+        uuidParam(c, 'customerId'),
+        await jsonBody(c),
+      ),
+    ),
+  )
 
   .post('/customers/:customerId/anonymize', requirePermission('customers.manage'), async (c) =>
     c.json(

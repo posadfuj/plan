@@ -1,4 +1,4 @@
-# Prueba en celulares reales (semanas 3, 4 y 5)
+# Prueba en celulares reales (semanas 3, 4 y 5 — antes de la semana 6)
 
 Las pruebas automáticas emulan un Android (Pixel 7) y un iPhone (14) en Chromium. Esta lista es para confirmar lo mismo en **teléfonos reales**, con su cámara, su lector NFC y su navegador (Safari en iPhone, Chrome en Android).
 
@@ -72,6 +72,22 @@ Hazlo desde el **celular del dueño** (es donde lo usará). Si puedes, crea el n
 | P9  | Clientes → buscar por nombre y por celular → abrir la ficha                                   | Saldo, historial con quién atendió                                                                    |        |               |              |
 | P10 | Bloquear al cliente → revisar su tarjeta y la caja → Desbloquear                              | Tarjeta "pausada" sin QR; la caja no suma; al desbloquear todo vuelve                                 |        |               |              |
 | P11 | Navegar el panel con una mano; girar el celular                                               | Menú de secciones se desliza; nada cortado; botones fáciles de tocar                                  |        |               |              |
+| P12 | Ficha del cliente → **Editar datos** → cambiar nombre y celular, escribir el motivo → Guardar | "Datos actualizados"; la tarjeta del cliente (misma URL) muestra el nombre nuevo y el mismo saldo     |        |               |              |
+| P13 | Editar otra vez y poner el celular de **otro** cliente                                        | "Ese celular ya lo usa otro cliente"; no se guarda nada                                               |        |               |              |
+
+## Modo sin conexión (todos los teléfonos)
+
+La caja **necesita internet** (ADR 0004): no hay modo offline en el MVP. Lo que se prueba es que, sin señal, el sistema **avise claro y no duplique nada** al volver.
+
+| #   | Paso                                                                                              | Resultado esperado                                                                                                                            | iPhone | Android medio | Android bajo |
+| --- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------- | ------------ |
+| O1  | Caja con un cliente abierto → modo avión → **SUMAR VISITA**                                       | Franja roja "Sin conexión"; mensaje de error claro; **no** dice "+1 sello"                                                                    |        |               |              |
+| O2  | Quitar el modo avión → volver a buscar al cliente                                                 | El saldo no cambió por el intento fallido; se puede sumar normalmente                                                                         |        |               |              |
+| O3  | Con señal muy débil (ascensor, sótano o "3G" en opciones de desarrollador) → SUMAR VISITA una vez | Suma **una sola vez** aunque tarde; si aparece error y se reintenta, el historial muestra 1 visita                                            |        |               |              |
+| O4  | Cliente: abrir su tarjeta con señal, luego modo avión y recargar                                  | Aparece el aviso de sin conexión del navegador (en el MVP la tarjeta no se guarda en el teléfono); al volver la señal, recargar la abre igual |        |               |              |
+| O5  | Panel: guardar un cambio en modo avión                                                            | Error claro "sin conexión"; al volver la señal se guarda al reintentar                                                                        |        |               |              |
+
+Si algo de esta tabla o de las anteriores se comporta distinto que en la emulación (pantalla en blanco, cámara que no abre, doble suma, botones cortados), anótalo con captura y modelo: se corrige **antes** de empezar la semana 6.
 
 **Importante:** la cámara del navegador solo funciona por `https://` (el túnel) o en `localhost`. Si abres la caja por la IP de la laptop en el Wi-Fi (`http://192.168…`), la cámara no abrirá: usa el túnel o la búsqueda por celular.
 

@@ -242,6 +242,17 @@ test('de cero a la primera tarjeta sin tocar código', async ({ page, browser, b
   await detail.getByRole('button', { name: 'Desbloquear' }).click();
   await expect(page.getByText('Cliente desbloqueado')).toBeVisible();
 
+  // Corregir el nombre desde la ficha: la tarjeta (misma URL) muestra el nuevo nombre y el saldo sigue igual.
+  await detail.getByRole('button', { name: 'Editar datos' }).click();
+  const editForm = detail.getByRole('dialog', { name: 'Editar datos del cliente' });
+  await editForm.getByLabel('Nombre').fill('Ñusta Quispe Mamani');
+  await editForm.getByLabel('Motivo del cambio').fill('La clienta pidió su nombre completo');
+  await editForm.getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.getByText('Datos actualizados.')).toBeVisible();
+  await customer.reload();
+  await expect(customer.getByTestId('customer-name')).toHaveText('Ñusta Quispe Mamani');
+  await expect(customer.getByTestId('balance')).toContainText('2 sellos');
+
   // --- 11. Inicio: configuración completa ----------------------------------------------
   await nav(page, 'Inicio');
   await expect(page.getByTestId('checklist')).toContainText('Configuración completa');

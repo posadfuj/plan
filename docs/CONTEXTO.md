@@ -5,9 +5,9 @@
 ## Estado al 28/09/2026
 
 - Rama de trabajo: `claude/loyalty-platform-technical-review-0qpg4x`.
-- **Semanas 1–4 aprobadas**; **semana 5 (panel del dueño y superadmin) entregada, pendiente de aprobación**. Próxima: semana 6 (reportes, automatizaciones y hardening).
-- **Antes de la semana 6:** prueba en celulares físicos (cliente, caja y panel). Si aparece una diferencia importante con la emulación, se corrige primero (pedido del fundador).
-- Pruebas: 226 tests + 20 E2E (Android e iPhone emulados; los del panel también corren en CI). CI verde (run #15).
+- **Semanas 1–5 aprobadas.** Después de aprobar la 5 se agregó editar nombre/celular del cliente desde la ficha (#23). Próxima: semana 6 (reportes, automatizaciones y hardening).
+- **Antes de la semana 6:** prueba en celulares físicos (iPhone, Android medio y bajo: cámara, QR, NFC, autorización de caja, recuperación, panel y sin conexión). Si aparece una diferencia importante con la emulación, se corrige primero (pedido del fundador).
+- Pruebas: 235 tests + 20 E2E (Android e iPhone emulados; los del panel también corren en CI). CI verde (run #15).
 
 ## Decisiones cerradas (no reabrir)
 
@@ -18,7 +18,8 @@
 - Dos tokens por membresía (URL privada de la tarjeta, guardada **solo como hash** y rotada al recuperar — ADR 0002; `member_scan_token` del QR de caja).
 - Límites de intentos: holgados por IP (IP compartida/CGNAT) + por celular/contacto y por dispositivo (ADR 0003).
 - Caja: dispositivo autorizado por QR (cookie 180 días) + turno con PIN argon2id (12 h); en caja solo se opera, aunque entre el dueño.
-- **La caja necesita internet; sin modo offline en el MVP** (ADR 0004).
+- **La caja necesita internet; sin modo offline en el MVP** (ADR 0004). La PWA no tiene service worker.
+- Editar datos del cliente: motivo obligatorio, auditoría sin PII (celular enmascarado), sin duplicados por negocio, no toca membresía ni tokens.
 - Trabajador por sucursal (vacío = todas); quitar la sucursal corta el turno. Topes del plan: sucursales y trabajadores de caja activos.
 - Negocio nuevo: lo crea el superadmin en `draft` (el dueño ya configura), Aiment lo publica (`live`). Cambiar de plantilla solo antes del primer cliente.
 - Términos y privacidad: un checkbox, **pendiente de validación legal**; promociones siempre separado.
@@ -31,7 +32,7 @@
 | Documento                                               | Contenido                                                     |
 | ------------------------------------------------------- | ------------------------------------------------------------- |
 | `docs/arquitectura-v1.1.md`                             | Arquitectura vigente                                          |
-| `docs/backlog-mvp.md`                                   | Plan por semanas (1–5 marcadas como hechas)                   |
+| `docs/backlog-mvp.md`                                   | Plan por semanas (1–5 aprobadas)                              |
 | `docs/semana-1-reporte.md` … `docs/semana-5-reporte.md` | Reportes y **deuda técnica**                                  |
 | `docs/decisiones/`                                      | ADR 0001 auth · 0002 token · 0003 límites · 0004 caja online  |
 | `docs/prueba-celulares.md`                              | Checklist para celulares reales (pendiente del fundador)      |
@@ -41,7 +42,7 @@
 ## Pendientes conocidos
 
 - **Semana 6:** reportes, CSV, automatizaciones, hardening y job de expiración programado.
-- **Decisiones pedidas al fundador (semana 5):** cerrar la deuda #12 (shadcn/ui); invitar admins (#22) y editar datos del cliente (#23) desde el panel, que no están en el MVP.
+- **Decididos por el fundador:** #12 shadcn/ui cerrada (no migrar si no hay mejora visible); #22 invitar admins → fase posterior, fuera del MVP; #23 editar cliente → hecha.
 - **Semana 7:** sincronizar los cambios de regla con los pases.
 - **Fundador:**
   - prueba en celulares reales: cliente, caja **y panel** (`pnpm local:tunnel` + `docs/prueba-celulares.md`);

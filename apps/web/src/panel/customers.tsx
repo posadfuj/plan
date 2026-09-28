@@ -189,7 +189,13 @@ function CustomerDetail({ id, unit, onBack }: { id: string; unit: string; onBack
   const { msg, setMsg, busy, run } = useAction();
   const [recovery, setRecovery] = useState<{ qrSvg: string; expiresAt: string } | null>(null);
   const [dialog, setDialog] = useState<
-    null | 'adjust' | 'block' | 'rotate' | 'delete' | { void: string; label: string; redemption?: boolean }
+    | null
+    | 'edit'
+    | 'adjust'
+    | 'block'
+    | 'rotate'
+    | 'delete'
+    | { void: string; label: string; redemption?: boolean }
   >(null);
 
   const load = useCallback(() => call<Detail>(`/customers/${id}`).then(setD), [call, id]);
@@ -264,6 +270,7 @@ function CustomerDetail({ id, unit, onBack }: { id: string; unit: string; onBack
       {m && (
         <Card title="Acciones">
           <div className="grid grid-cols-2 gap-2">
+            <SmallButton onClick={() => setDialog('edit')}>Editar datos</SmallButton>
             <SmallButton onClick={() => setDialog('adjust')}>Ajustar saldo</SmallButton>
             <SmallButton
               disabled={busy || m.status === 'blocked'}
@@ -310,6 +317,21 @@ function CustomerDetail({ id, unit, onBack }: { id: string; unit: string; onBack
             </div>
           )}
 
+          {dialog === 'edit' && (
+            <EditCustomerDialog
+              name={d.customer.fullName}
+              phone={d.customer.phone}
+              busy={busy}
+              onCancel={() => setDialog(null)}
+              onConfirm={(json) =>
+                void run(async () => {
+                  await call(`/customers/${d.customer.id}`, { method: 'PATCH', json });
+                  setDialog(null);
+                  await load();
+                }, 'Datos actualizados. La tarjeta y el historial siguen igual.')
+              }
+            />
+          )}
           {dialog === 'adjust' && (
             <ReasonDialog
               title="Ajustar saldo"
@@ -452,6 +474,80 @@ function CustomerDetail({ id, unit, onBack }: { id: string; unit: string; onBack
         </ul>
       </Card>
     </div>
+  );
+}
+
+/** Corregir nombre y/o celular. Solo se envía lo que cambió; el motivo queda en la auditoría. */
+function EditCustomerDialog({
+  name,
+  phone,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  name: string;
+  phone: string;
+  busy: boolean;
+  onConfirm: (json: { fullName?: string; phone?: string; reason: string }) => void;
+  onCancel: () => void;
+}) {
+  const [fullName, setFullName] = useState(name);
+  const [cel, setCel] = useState(phone);
+  const [reason, setReason] = useState('');
+  return (
+    <form
+      className="mt-4 space-y-2 rounded-xl bg-gray-50 p-3"
+      role="dialog"
+      aria-label="Editar datos del cliente"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onConfirm({
+          ...(fullName.trim() !== name ? { fullName } : {}),
+          ...(cel.replace(/\s/g, '') !== phone ? { phone: cel } : {}),
+          reason,
+        });
+      }}
+    >
+      <p className="font-medium">Editar datos del cliente</p>
+      <p className="text-xs text-gray-600">
+        Su tarjeta, su saldo y su historial no cambian. Si el celular ya lo tiene otro cliente, no se permite.
+      </p>
+      <input
+        aria-label="Nombre"
+        className={inputCls}
+        value={fullName}
+        onChange={(e) => setFullName(e.target.value)}
+        maxLength={80}
+        required
+      />
+      <input
+        aria-label="Celular"
+        className={inputCls}
+        type="tel"
+        inputMode="tel"
+        value={cel}
+        onChange={(e) => setCel(e.target.value)}
+        required
+      />
+      <input
+        aria-label="Motivo del cambio"
+        placeholder="Motivo del cambio"
+        className={inputCls}
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        minLength={5}
+        maxLength={300}
+        required
+      />
+      <div className="flex gap-2">
+        <SmallButton type="submit" tone="primary" disabled={busy} className="flex-1">
+          Guardar
+        </SmallButton>
+        <SmallButton onClick={onCancel} className="flex-1">
+          Cancelar
+        </SmallButton>
+      </div>
+    </form>
   );
 }
 

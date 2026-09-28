@@ -214,7 +214,9 @@ export async function getJoinInfo(db: Db, code: string) {
 // ---------------------------------------------------------------------------
 // Registro
 // ---------------------------------------------------------------------------
-const nameRe = /^[\p{L}][\p{L}\p{M}' .-]{1,79}$/u;
+/** Nombre del cliente: letras, espacios, apóstrofo, punto y guion (2–80). Se usa también al editar desde el panel. */
+export const CUSTOMER_NAME_RE = /^[\p{L}][\p{L}\p{M}' .-]{1,79}$/u;
+const nameRe = CUSTOMER_NAME_RE;
 /**
  * Correo con letras de cualquier idioma (tildes, ñ) antes y después de la @.
  * La validación de zod solo aceptaba ASCII y rechazaba, p. ej., "peña@…".
