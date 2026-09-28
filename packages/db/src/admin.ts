@@ -439,9 +439,13 @@ async function seedOrg(tx: Tx, key: SeedOrgKey) {
       if (t > now) break;
       firstValidatedAt ??= new Date(t);
       if (stamps) {
-        entry('earn', 1);
+        const earnId = entry('earn', 1);
         if (balance >= goal) {
-          const convertId = entry('convert', -goal, { actorType: 'system', actorId: null });
+          const convertId = entry('convert', -goal, {
+            actorType: 'system',
+            actorId: null,
+            causedByEntryId: earnId,
+          });
           const earnedId = randomUUID();
           const willRedeem = rand() < 0.6;
           earnedRows.push({

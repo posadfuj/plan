@@ -54,19 +54,22 @@ Estado: **cerrada**. Detalle en [`semana-1-reporte.md`](./semana-1-reporte.md).
 
 **Demostrable:** `pnpm local:setup` + `pnpm demo` → 19/19 verificaciones.
 
-## Semana 2: Motor de fidelización
+## Semana 2: Motor de fidelización ✔
 
-Arrastrado de la semana 1: ejecutar `pnpm wallet:google-demo` con la cuenta emisora y registrar la prueba en Android; sincronización de Wallet con un job por proveedor (hoy un fallo de Google reenvía también a Apple, sin efecto sobre el saldo).
+Estado: **cerrada**. Detalle en [`semana-2-reporte.md`](./semana-2-reporte.md).
 
-- [ ] `packages/core`: `computeEarn`, `applyGoal` (con arrastre), `checkLimits`, `computeRedeem`, `computeVoid` y `computeExpiration`, con cobertura > 90 %.
-- [ ] Servicio de ledger: `earn`, `redeem`, `void` y `adjust`. Transacción + `FOR UPDATE` + idempotencia (devuelve el resultado original) + `balance_after` + `earned_rewards` + `event_outbox` + auditoría.
-- [ ] Versiones de regla (`program_rule_versions`) y premios.
-- [ ] Dispatcher del outbox → pg-boss → **`FakeWalletProvider`**, con reintentos probados.
-- [ ] Tests de integración: 20 `earn` concurrentes, reintento con la misma clave, doble canje, doble anulación y rechazo de `UPDATE`/`DELETE` en el ledger.
+- [x] `packages/core`: reglas, `computeEarn`, `computeGoal` (con arrastre), `checkLimits`, `decideRedeem`, `decideVoid`, ajustes y expiración. Cobertura 99 % (CI exige 90 %).
+- [x] Servicio `@aiment/ledger`: `earn`, `redeem`, `adjust`, `voidEntry` y `voidRedemption`. Transacción + bloqueo + idempotencia con respuesta original + `balance_after` + `earned_rewards` + outbox + auditoría.
+- [x] Versiones de regla y premios (servicio + API).
+- [x] Wallet simulado con **una cola por proveedor** (arrastrado de la semana 1).
+- [x] Tests: 20 sumas concurrentes, reintento con la misma clave, doble canje, doble anulación, ledger inmutable.
+- [ ] Prueba real de Google Wallet en Android: **pendiente de la cuenta emisora del fundador**.
 
-**Demostrable:** por API se suma 10 veces → premio ganado → canje una sola vez → anulación, sin editar el historial.
+**Demostrable:** `pnpm demo` → 23/23.
 
 ## Semana 3: Registro, dos tokens, tarjeta web y QR/NFC
+
+Arrastrado: prueba real de Google Wallet (cuando esté la cuenta). Deuda técnica registrada en el reporte de la semana 2, asignada a las semanas 4, 6 y 7.
 
 - [ ] `short_links` por sucursal y `GET /go/:token` en la API (en local reemplaza al Worker), con registro en `channel_visits` (`c=q|n`).
 - [ ] `/join/{joinCode}`: marca, formulario (nombre + celular; correo y cumpleaños opcionales), consentimientos versionados y rate limit.

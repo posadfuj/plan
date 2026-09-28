@@ -408,6 +408,8 @@ export const ledgerEntries = app.table(
     deviceId: uuid('device_id').references(() => workerDevices.id),
     reason: text('reason'),
     reversesEntryId: uuid('reverses_entry_id').references((): AnyPgColumn => ledgerEntries.id),
+    /** Movimiento que originó este (p. ej. la suma que completó la meta → 'convert', o el bono de bienvenida). */
+    causedByEntryId: uuid('caused_by_entry_id').references((): AnyPgColumn => ledgerEntries.id),
     idempotencyKey: text('idempotency_key').notNull(),
     balanceAfter: integer('balance_after').notNull(),
     createdAt: createdAt(),
@@ -417,6 +419,9 @@ export const ledgerEntries = app.table(
     index('ledger_entries_membership_idx').on(t.organizationId, t.membershipId, t.createdAt.desc()),
     index('ledger_entries_org_created_idx').on(t.organizationId, t.createdAt.desc()),
     index('ledger_entries_actor_idx').on(t.organizationId, t.actorId, t.createdAt.desc()),
+    index('ledger_entries_caused_by_idx')
+      .on(t.causedByEntryId)
+      .where(sql`${t.causedByEntryId} is not null`),
     uniqueIndex('ledger_single_reversal')
       .on(t.reversesEntryId)
       .where(sql`${t.reversesEntryId} is not null`),

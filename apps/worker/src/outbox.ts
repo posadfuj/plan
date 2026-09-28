@@ -1,5 +1,6 @@
 import { schema, withSystemTx, type Db } from '@aiment/db';
-import { asc, inArray, isNull, sql } from 'drizzle-orm';
+import type { WalletProviderName } from '@aiment/wallet';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 /** Eventos que cambian lo que se ve en un pase y disparan una sincronización de Wallet. */
 export const WALLET_EVENTS = new Set([
@@ -10,11 +11,19 @@ export const WALLET_EVENTS = new Set([
   'wallet.resync_requested',
 ]);
 
-export const QUEUES = { walletSync: 'wallet.sync' } as const;
+/**
+ * Una cola por proveedor: si Google falla, se reintenta solo Google; Apple no repite trabajo
+ * (y viceversa). Cada cola tiene su propia política de reintentos.
+ */
+export const WALLET_QUEUES: Record<WalletProviderName, string> = {
+  google: 'wallet.sync.google',
+  apple: 'wallet.sync.apple',
+};
 
 export interface WalletSyncJob {
   membershipId: string;
   organizationId: string;
+  provider: WalletProviderName;
   eventId: number;
 }
 
@@ -22,8 +31,9 @@ export type Enqueue = (queue: string, data: WalletSyncJob, key: string) => Promi
 
 /**
  * Lee eventos pendientes del outbox, los encola y los marca como despachados.
- * Entrega "al menos una vez": los consumidores deben ser idempotentes (la sincronización de Wallet lo es,
- * porque siempre envía el estado actual leído de la base).
+ * - Solo encola proveedores en los que la membresía tiene un pase activo.
+ * - Varios eventos de una misma membresía en el lote → un solo job por proveedor.
+ * Entrega "al menos una vez": la sincronización es idempotente (envía el estado actual de la base).
  */
 export async function dispatchOutboxBatch(db: Db, enqueue: Enqueue, limit = 100): Promise<number> {
   return withSystemTx(db, async (tx) => {
@@ -36,16 +46,42 @@ export async function dispatchOutboxBatch(db: Db, enqueue: Enqueue, limit = 100)
       .for('update', { skipLocked: true });
     if (!events.length) return 0;
 
-    for (const e of events) {
-      if (WALLET_EVENTS.has(e.type)) {
+    const walletEvents = events.filter((e) => WALLET_EVENTS.has(e.type));
+    const membershipIds = [...new Set(walletEvents.map((e) => e.aggregateId))];
+    const passes = membershipIds.length
+      ? await tx
+          .selectDistinct({
+            membershipId: schema.walletPasses.membershipId,
+            provider: schema.walletPasses.provider,
+          })
+          .from(schema.walletPasses)
+          .where(
+            and(
+              inArray(schema.walletPasses.membershipId, membershipIds),
+              eq(schema.walletPasses.status, 'active'),
+            ),
+          )
+      : [];
+
+    const queued = new Set<string>();
+    for (const e of walletEvents) {
+      for (const p of passes.filter((x) => x.membershipId === e.aggregateId)) {
+        const jobKey = `${p.provider}:${e.aggregateId}`;
+        if (queued.has(jobKey)) continue;
+        queued.add(jobKey);
         await enqueue(
-          QUEUES.walletSync,
-          { membershipId: e.aggregateId, organizationId: e.organizationId, eventId: e.id },
-          e.aggregateId,
+          WALLET_QUEUES[p.provider],
+          {
+            membershipId: e.aggregateId,
+            organizationId: e.organizationId,
+            provider: p.provider,
+            eventId: e.id,
+          },
+          jobKey,
         );
       }
-      // Otros tipos (automatizaciones, links) tendrán consumidores desde las semanas 3 y 6.
     }
+    // Otros tipos (program.updated, automatizaciones, links) tendrán consumidores en las semanas 3, 6 y 7.
 
     await tx
       .update(schema.eventOutbox)

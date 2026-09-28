@@ -1,5 +1,5 @@
 import { schema, withSystemTx, type Db } from '@aiment/db';
-import type { WalletPassRef, WalletProvider } from '@aiment/wallet';
+import type { WalletPassRef, WalletProvider, WalletProviderName } from '@aiment/wallet';
 import { and, eq, sql } from 'drizzle-orm';
 import { loadMembershipView } from './membership-view';
 
@@ -17,6 +17,8 @@ export async function syncMembershipPasses(
   providers: WalletProvider[],
   membershipId: string,
   publicBaseUrl: string,
+  /** Si se indica, solo sincroniza los pases de ese proveedor (un job por proveedor). */
+  onlyProvider?: WalletProviderName,
 ): Promise<SyncResult> {
   const { view, passes } = await withSystemTx(db, async (tx) => ({
     view: await loadMembershipView(tx, membershipId, publicBaseUrl),
@@ -29,7 +31,11 @@ export async function syncMembershipPasses(
       })
       .from(schema.walletPasses)
       .where(
-        and(eq(schema.walletPasses.membershipId, membershipId), eq(schema.walletPasses.status, 'active')),
+        and(
+          eq(schema.walletPasses.membershipId, membershipId),
+          eq(schema.walletPasses.status, 'active'),
+          onlyProvider ? eq(schema.walletPasses.provider, onlyProvider) : undefined,
+        ),
       ),
   }));
   if (!view) return { synced: 0, failed: [] };

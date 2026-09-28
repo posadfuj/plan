@@ -1,5 +1,5 @@
 {
-  "name": "@aiment/core",
+  "name": "@aiment/ledger",
   "private": true,
   "type": "module",
   "exports": {
@@ -9,6 +9,8 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "zod": "^4.6.5"
+    "@aiment/core": "workspace:*",
+    "@aiment/db": "workspace:*",
+    "drizzle-orm": "^0.45.3"
   }
 }

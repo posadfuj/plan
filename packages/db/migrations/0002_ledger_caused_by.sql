@@ -1,0 +1,3 @@
+ALTER TABLE "app"."ledger_entries" ADD COLUMN "caused_by_entry_id" uuid;--> statement-breakpoint
+ALTER TABLE "app"."ledger_entries" ADD CONSTRAINT "ledger_entries_caused_by_entry_id_ledger_entries_id_fk" FOREIGN KEY ("caused_by_entry_id") REFERENCES "app"."ledger_entries"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "ledger_entries_caused_by_idx" ON "app"."ledger_entries" USING btree ("caused_by_entry_id") WHERE "app"."ledger_entries"."caused_by_entry_id" is not null;

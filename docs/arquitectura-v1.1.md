@@ -158,6 +158,13 @@ Cerrada en la semana 1. La comparación completa está en [ADR 0001](./decisione
 
 ## 5. Motor de fidelización (sin cambios de fondo respecto a v1.0)
 
+> **Implementado en la semana 2** (`packages/core/src/loyalty`, `packages/ledger`). Precisiones respecto a lo descrito abajo:
+>
+> - Rutas actuales (dueño/admin): `POST /v1/orgs/:orgId/memberships/:membershipId/{earn,redeem,adjust}`, `POST /v1/orgs/:orgId/ledger/:entryId/void` y `POST /v1/orgs/:orgId/redemptions/:redemptionId/void`. Las de caja (`/v1/staff/...` por `scanToken`) llegan en la semana 4 sobre el mismo servicio.
+> - El tope diario (`staff_daily_units`) aplica solo a trabajadores; el cooldown aplica a todos.
+> - `caused_by_entry_id` vincula una suma con la conversión o el bono que generó; al anularla se revierten juntos.
+> - Wallet: una cola por proveedor (`wallet.sync.google` / `wallet.sync.apple`).
+
 | Concepto | Sellos                                                                  | Puntos                                            |
 | -------- | ----------------------------------------------------------------------- | ------------------------------------------------- |
 | Regla    | `per_visit` → +N                                                        | `per_amount` → `floor(importe / amount_per_unit)` |

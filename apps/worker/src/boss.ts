@@ -1,7 +1,7 @@
 import { PgBoss } from 'pg-boss';
 import type { Db } from '@aiment/db';
 import type { WalletProvider } from '@aiment/wallet';
-import { dispatchOutboxBatch, QUEUES, type WalletSyncJob } from './outbox';
+import { dispatchOutboxBatch, WALLET_QUEUES, type WalletSyncJob } from './outbox';
 import { syncMembershipPasses } from './wallet-sync';
 
 export interface WorkerOptions {
@@ -13,10 +13,12 @@ export interface WorkerOptions {
   debounceSeconds?: number;
   retry?: { limit: number; delaySeconds: number; backoff: boolean };
   pollSeconds?: number;
+  /** false = el outbox solo se despacha al llamar `tick()` (tests deterministas). */
+  autoDispatch?: boolean;
   log?: (msg: string) => void;
 }
 
-/** Arranca pg-boss, registra el consumidor de wallet.sync y el despachador del outbox. */
+/** Arranca pg-boss, registra un consumidor por proveedor de Wallet y el despachador del outbox. */
 export async function startWorker(opts: WorkerOptions) {
   const log = opts.log ?? (() => {});
   const boss = new PgBoss({
@@ -30,33 +32,36 @@ export async function startWorker(opts: WorkerOptions) {
   await boss.start();
 
   const retry = opts.retry ?? { limit: 8, delaySeconds: 5, backoff: true };
-  await boss.createQueue(QUEUES.walletSync, {
-    retryLimit: retry.limit,
-    retryDelay: retry.delaySeconds,
-    retryBackoff: retry.backoff,
-    ...(retry.backoff ? { retryDelayMax: 3600 } : {}),
-  });
-
-  await boss.work<WalletSyncJob>(
-    QUEUES.walletSync,
-    { pollingIntervalSeconds: opts.pollSeconds ?? 1 },
-    async ([job]) => {
-      if (!job) return;
-      const r = await syncMembershipPasses(
-        opts.db,
-        opts.providers,
-        job.data.membershipId,
-        opts.publicBaseUrl,
-      );
-      if (r.failed.length) {
-        log(
-          `[wallet.sync] ${job.data.membershipId}: ${r.failed.length} pase(s) con error, se reintentará (intento ${job.retryCount + 1})`,
+  for (const provider of opts.providers) {
+    const queue = WALLET_QUEUES[provider.name];
+    await boss.createQueue(queue, {
+      retryLimit: retry.limit,
+      retryDelay: retry.delaySeconds,
+      retryBackoff: retry.backoff,
+      ...(retry.backoff ? { retryDelayMax: 3600 } : {}),
+    });
+    await boss.work<WalletSyncJob>(
+      queue,
+      { pollingIntervalSeconds: opts.pollSeconds ?? 1 },
+      async ([job]) => {
+        if (!job) return;
+        const r = await syncMembershipPasses(
+          opts.db,
+          [provider],
+          job.data.membershipId,
+          opts.publicBaseUrl,
+          provider.name,
         );
-        throw new Error(r.failed.map((f) => `${f.externalId}: ${f.error}`).join('; '));
-      }
-      log(`[wallet.sync] ${job.data.membershipId}: ${r.synced} pase(s) sincronizado(s)`);
-    },
-  );
+        if (r.failed.length) {
+          log(
+            `[${queue}] ${job.data.membershipId}: ${r.failed.length} pase(s) con error, se reintentará (intento ${job.retryCount + 1})`,
+          );
+          throw new Error(r.failed.map((f) => `${f.externalId}: ${f.error}`).join('; '));
+        }
+        log(`[${queue}] ${job.data.membershipId}: ${r.synced} pase(s) sincronizado(s)`);
+      },
+    );
+  }
 
   const debounce = opts.debounceSeconds ?? 3;
   const enqueue = (queue: string, data: WalletSyncJob, key: string) =>
@@ -76,7 +81,7 @@ export async function startWorker(opts: WorkerOptions) {
       busy = false;
     }
   };
-  const timer = setInterval(() => void tick(), 1000);
+  const timer = opts.autoDispatch === false ? undefined : setInterval(() => void tick(), 1000);
 
   return {
     boss,

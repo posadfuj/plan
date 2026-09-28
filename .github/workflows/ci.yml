@@ -43,9 +43,9 @@ jobs:
         run: pnpm typecheck
       - name: Esquema y migraciones sincronizados
         run: pnpm db:check
-      - name: Tests unitarios
-        run: pnpm vitest run --project unit
-      - name: Tests de integración (RLS, aislamiento API, roles, Wallet simulado)
+      - name: Tests unitarios (cobertura mínima 90 % en el motor)
+        run: pnpm vitest run --project unit --coverage
+      - name: Tests de integración (RLS, aislamiento, ledger, concurrencia, Wallet)
         run: pnpm vitest run --project integration
 
   secrets:

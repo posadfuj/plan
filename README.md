@@ -2,7 +2,7 @@
 
 Plataforma de fidelización digital multi-negocio: puntos y sellos, tarjeta web, QR/NFC y Apple/Google Wallet.
 
-> Estado: **semana 1 del MVP (local-first)**. Ver [`docs/semana-1-reporte.md`](docs/semana-1-reporte.md).
+> Estado: **semana 2 del MVP (local-first)**. Reportes: [semana 1](docs/semana-1-reporte.md) · [semana 2](docs/semana-2-reporte.md).
 > Documentos: [arquitectura v1.1](docs/arquitectura-v1.1.md) · [backlog](docs/backlog-mvp.md) · [decisiones](docs/decisiones/).
 
 ## Requisitos
@@ -16,7 +16,7 @@ Plataforma de fidelización digital multi-negocio: puntos y sellos, tarjeta web,
 ```bash
 pnpm install
 pnpm local:setup   # levanta Supabase local, genera .env, migra y carga datos de prueba
-pnpm demo          # recorrido guiado de la semana 1 (19 verificaciones)
+pnpm demo          # recorrido guiado de la semana 2 (23 verificaciones); pnpm demo:semana-1 (19)
 ```
 
 `pnpm local:setup` equivale a:
@@ -60,8 +60,9 @@ El celular `+51987000001` está registrado en la barbería y en la veterinaria c
 
 ```
 apps/api        API Hono: autenticación (Supabase Auth), roles, endpoints
-apps/worker     outbox → pg-boss → sincronización de Wallet
-packages/core   reglas puras (hoy: matriz de permisos; semana 2: motor de puntos/sellos)
+apps/worker     outbox → pg-boss (una cola por proveedor) → sincronización de Wallet
+packages/core   reglas puras: matriz de permisos y motor de puntos/sellos
+packages/ledger servicio transaccional: sumar, canjear, ajustar, anular, reglas y premios
 packages/db     esquema Drizzle, migraciones, RLS, seed
 packages/wallet interfaz WalletProvider, Wallet simulado, enlace Google Wallet
 packages/config variables de entorno
@@ -75,3 +76,4 @@ docs/           arquitectura, backlog, decisiones y reportes
 - La API se conecta con el usuario `aiment_api` (rol `app_api`, sin `BYPASSRLS`). El usuario administrador solo se usa para migraciones y seed.
 - Todo endpoint nuevo bajo `/v1/orgs/:orgId` debe agregarse a la suite de aislamiento (`apps/api/src/api.int.test.ts`); un test falla si falta.
 - El ledger no se edita ni se borra: correcciones = reversa o ajuste.
+- Toda operación que cambia saldo exige la cabecera `Idempotency-Key` (una por intención, no por clic).
