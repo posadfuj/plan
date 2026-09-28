@@ -9,7 +9,11 @@ import { join } from 'node:path';
 import { repoRoot } from '@aiment/config';
 
 const status = JSON.parse(
-  execFileSync('pnpm', ['exec', 'supabase', 'status', '-o', 'json'], { cwd: repoRoot, encoding: 'utf8' }),
+  execFileSync('pnpm', ['exec', 'supabase', 'status', '-o', 'json'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    shell: process.platform === 'win32', // en Windows pnpm es pnpm.cmd
+  }),
 ) as Record<string, string>;
 
 const envPath = join(repoRoot, '.env');
