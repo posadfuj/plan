@@ -358,7 +358,7 @@ async function seedOrg(tx: Tx, key: SeedOrgKey) {
     organizationId: o.id,
     branchId: o.branchId,
     kind: 'registration',
-    target: `/join/${o.slug}`,
+    target: `/join/${o.linkSlug}`,
   });
 
   const consents = await tx

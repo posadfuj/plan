@@ -1,0 +1,22 @@
+{
+  "name": "@aiment/enrollment",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@aiment/core": "workspace:*",
+    "@aiment/db": "workspace:*",
+    "@aiment/mail": "workspace:*",
+    "drizzle-orm": "^0.45.3",
+    "qrcode": "^1.5.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6"
+  }
+}

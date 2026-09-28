@@ -57,3 +57,67 @@ jobs:
           fetch-depth: 0
       - name: gitleaks (historial completo)
         run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest git /repo --redact --verbose
+
+  e2e:
+    name: E2E celulares (Android e iPhone emulados)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      mailpit:
+        image: axllent/mailpit:latest
+        ports: ['1025:1025', '8025:8025']
+    env:
+      DATABASE_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      APP_DB_USER: aiment_api
+      APP_DB_PASSWORD: ci-only-password
+      DATABASE_URL: postgresql://aiment_api:ci-only-password@localhost:5432/postgres
+      # Sin Supabase Auth en CI: el flujo del cliente es público; el panel se cubre en integración.
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_JWT_SECRET: ci-only-jwt-secret-with-32-characters!!
+      PUBLIC_BASE_URL: http://localhost:4173
+      TRUST_PROXY: 'true'
+      RATE_LIMIT_REGISTER: '100'
+      RATE_LIMIT_RECOVERY: '100'
+      RATE_LIMIT_REDEEM: '100'
+      MAIL_TRANSPORT: smtp
+      SMTP_HOST: 127.0.0.1
+      SMTP_PORT: '1025'
+      MAILPIT_URL: http://localhost:8025
+      E2E_BASE_URL: http://localhost:4173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Base de datos con datos de prueba
+        run: pnpm db:reset
+      - name: Compilar la PWA
+        run: pnpm --filter @aiment/web build
+      - name: Levantar API y PWA
+        run: |
+          pnpm --filter @aiment/api start > api.log 2>&1 &
+          pnpm --filter @aiment/web preview > web.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:4173/health && break; sleep 1; done
+          curl -sf http://localhost:4173/health
+      - name: Playwright
+        run: pnpm exec playwright test -c e2e/playwright.config.ts
+      - name: Logs y capturas si falla
+        if: failure()
+        run: tail -50 api.log web.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-capturas
+          path: e2e/artifacts
+          retention-days: 7

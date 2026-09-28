@@ -22,6 +22,20 @@
       "when": 1790575816447,
       "tag": "0002_ledger_caused_by",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790578054821,
+      "tag": "0003_card_recovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790578055887,
+      "tag": "0004_card_recovery_rls",
+      "breakpoints": true
     }
   ]
 }

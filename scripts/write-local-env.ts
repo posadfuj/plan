@@ -47,6 +47,7 @@ const values: Record<string, string> = {
   SUPABASE_PUBLISHABLE_KEY: status.PUBLISHABLE_KEY ?? status.ANON_KEY!,
   SUPABASE_SECRET_KEY: status.SECRET_KEY ?? status.SERVICE_ROLE_KEY!,
   SUPABASE_JWT_SECRET: status.JWT_SECRET!,
+  VISITOR_HASH_SALT: prev.VISITOR_HASH_SALT || randomBytes(16).toString('hex'),
 };
 
 const out = example

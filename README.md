@@ -2,12 +2,13 @@
 
 Plataforma de fidelización digital multi-negocio: puntos y sellos, tarjeta web, QR/NFC y Apple/Google Wallet.
 
-> Estado: **semana 2 del MVP (local-first)**. Reportes: [semana 1](docs/semana-1-reporte.md) · [semana 2](docs/semana-2-reporte.md).
+> Estado: **semana 3 del MVP (local-first)**. Reportes: [semana 1](docs/semana-1-reporte.md) · [semana 2](docs/semana-2-reporte.md) · [semana 3](docs/semana-3-reporte.md).
 > Documentos: [arquitectura v1.1](docs/arquitectura-v1.1.md) · [backlog](docs/backlog-mvp.md) · [decisiones](docs/decisiones/).
 
 ## Requisitos
 
 - Node.js **22.12+** (`.nvmrc`)
+- Para `pnpm demo` / `pnpm e2e`: `pnpm exec playwright install chromium` (una vez)
 - pnpm **10** (`corepack enable`)
 - Docker (para Supabase local)
 
@@ -16,7 +17,8 @@ Plataforma de fidelización digital multi-negocio: puntos y sellos, tarjeta web,
 ```bash
 pnpm install
 pnpm local:setup   # levanta Supabase local, genera .env, migra y carga datos de prueba
-pnpm demo          # recorrido guiado de la semana 2 (23 verificaciones); pnpm demo:semana-1 (19)
+pnpm demo          # semana 3: flujo del cliente en Android e iPhone emulados (8/8)
+                   # anteriores: pnpm demo:semana-2 (23) · pnpm demo:semana-1 (19)
 ```
 
 `pnpm local:setup` equivale a:
@@ -59,10 +61,13 @@ El celular `+51987000001` está registrado en la barbería y en la veterinaria c
 ## Estructura
 
 ```
-apps/api        API Hono: autenticación (Supabase Auth), roles, endpoints
+apps/api        API Hono: autenticación (Supabase Auth), roles, endpoints, rutas públicas
+apps/web        PWA: registro, tarjeta web, QR de caja, recuperación, panel mínimo
 apps/worker     outbox → pg-boss (una cola por proveedor) → sincronización de Wallet
 packages/core   reglas puras: matriz de permisos y motor de puntos/sellos
 packages/ledger servicio transaccional: sumar, canjear, ajustar, anular, reglas y premios
+packages/enrollment registro, tarjeta web, QR de caja y recuperación
+packages/mail   correo (Mailpit en local, memoria en tests)
 packages/db     esquema Drizzle, migraciones, RLS, seed
 packages/wallet interfaz WalletProvider, Wallet simulado, enlace Google Wallet
 packages/config variables de entorno

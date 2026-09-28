@@ -3,12 +3,17 @@ import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
 import { secureHeaders } from 'hono/secure-headers';
 import { LoyaltyError } from '@aiment/core';
+import { EnrollmentError } from '@aiment/enrollment';
 import { ServiceError } from '@aiment/ledger';
+import { MemoryMailer } from '@aiment/mail';
 import { ZodError } from 'zod';
-import type { AppDeps, AppEnv } from './context';
+import type { AppDeps, AppEnv, ResolvedDeps } from './context';
+import { RateLimiter } from './rate-limit';
 import { HttpError } from './errors';
 import { adminRoutes } from './routes/admin';
+import { linkRoutes } from './routes/links';
 import { loyaltyRoutes } from './routes/loyalty';
+import { goRoutes, publicRoutes } from './routes/public';
 import { meRoutes } from './routes/me';
 import { orgRoutes } from './routes/orgs';
 
@@ -22,7 +27,13 @@ const VALIDATION_ERRORS = new Set<string>([
   'reason_required',
 ]);
 
-export function createApp(deps: AppDeps) {
+export function createApp(input: AppDeps) {
+  const deps: ResolvedDeps = {
+    ...input,
+    mailer: input.mailer ?? new MemoryMailer(),
+    publicBaseUrl: input.config.publicBaseUrl ?? 'http://localhost:5173',
+    limiter: new RateLimiter(),
+  };
   const app = new Hono<AppEnv>();
 
   app.use(requestId(), secureHeaders());
@@ -39,6 +50,9 @@ export function createApp(deps: AppDeps) {
   app.route('/v1/me', meRoutes);
   app.route('/v1/orgs/:orgId', orgRoutes);
   app.route('/v1/orgs/:orgId', loyaltyRoutes);
+  app.route('/v1/orgs/:orgId', linkRoutes);
+  app.route('/v1/public', publicRoutes);
+  app.route('/go', goRoutes);
   app.route('/v1/admin', adminRoutes);
 
   app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Ruta no encontrada' } }, 404));
@@ -50,6 +64,8 @@ export function createApp(deps: AppDeps) {
         { error: { code: err.code, message: err.message, details: err.details } },
         VALIDATION_ERRORS.has(err.code) ? 422 : 409,
       );
+    if (err instanceof EnrollmentError)
+      return c.json({ error: { code: err.code, message: err.message, details: err.details } }, err.status);
     if (err instanceof ServiceError)
       return c.json({ error: { code: err.code, message: err.message, details: err.details } }, err.status);
     if (err instanceof ZodError)

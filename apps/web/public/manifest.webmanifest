@@ -1,0 +1,9 @@
+{
+  "name": "Aiment Wallet",
+  "short_name": "Aiment",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#111827",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

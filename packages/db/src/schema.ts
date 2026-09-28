@@ -71,6 +71,7 @@ export const linkKind = app.enum('link_kind', ['registration', 'campaign', 'cust
 export const channelKind = app.enum('channel_kind', ['qr', 'nfc', 'direct', 'unknown']);
 export const tagKind = app.enum('tag_kind', ['qr', 'nfc']);
 export const consentKind = app.enum('consent_kind', ['terms', 'privacy', 'marketing']);
+export const recoveryChannel = app.enum('recovery_channel', ['email', 'in_store']);
 
 // ---------------------------------------------------------------------------
 // Planes y organizaciones
@@ -383,6 +384,28 @@ export const memberships = app.table(
     index('memberships_org_activity_idx').on(t.organizationId, t.lastActivityAt),
     check('memberships_balance_non_negative', sql`${t.balance} >= 0`),
   ],
+);
+
+/**
+ * Enlaces de recuperación de tarjeta (un solo uso, vencen). Solo se guarda el hash del token:
+ * el enlace en claro existe únicamente en el correo o en el QR que muestra la caja.
+ */
+export const cardRecoveryTokens = app.table(
+  'card_recovery_tokens',
+  {
+    id: id(),
+    organizationId: orgId(),
+    membershipId: uuid('membership_id')
+      .notNull()
+      .references(() => memberships.id),
+    tokenHash: text('token_hash').notNull().unique(),
+    channel: recoveryChannel('channel').notNull(),
+    issuedBy: uuid('issued_by').references(() => organizationUsers.id),
+    expiresAt: ts('expires_at').notNull(),
+    usedAt: ts('used_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('card_recovery_tokens_membership_idx').on(t.membershipId, t.createdAt.desc())],
 );
 
 // ---------------------------------------------------------------------------

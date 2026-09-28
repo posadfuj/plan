@@ -67,22 +67,25 @@ Estado: **cerrada**. Detalle en [`semana-2-reporte.md`](./semana-2-reporte.md).
 
 **Demostrable:** `pnpm demo` → 23/23.
 
-## Semana 3: Registro, dos tokens, tarjeta web y QR/NFC
+## Semana 3: Registro, dos tokens, tarjeta web y QR/NFC ✔
 
-Arrastrado: prueba real de Google Wallet (cuando esté la cuenta). Deuda técnica registrada en el reporte de la semana 2, asignada a las semanas 4, 6 y 7.
+Estado: **cerrada** (salvo la prueba en celulares reales). Detalle en [`semana-3-reporte.md`](./semana-3-reporte.md).
 
-- [ ] `short_links` por sucursal y `GET /go/:token` en la API (en local reemplaza al Worker), con registro en `channel_visits` (`c=q|n`).
-- [ ] `/join/{joinCode}`: marca, formulario (nombre + celular; correo y cumpleaños opcionales), consentimientos versionados y rate limit.
-- [ ] `POST /v1/public/register`: genera `member_scan_token` + `web_card_token` + `short_code`. Si el celular ya existe, responde de forma neutra.
-- [ ] **Tarjeta web** `/m/{web_card_token}`: saldo, progreso, premios, QR `/s/{member_scan_token}`, `short_code`, historial y "Powered by Aiment Wallet".
-- [ ] `/s/{token}` para cámaras ajenas, sin datos personales.
-- [ ] "Abrir mi tarjeta" con `localStorage` y recuperación por correo (Mailpit).
-- [ ] Panel mínimo: descargar el QR de la sucursal y copiar la URL NFC.
-- [ ] **Túnel rápido** para probar con celulares reales.
+- [x] `short_links` por sucursal y `GET /go/:slug` en la API, con registro en `channel_visits` (`c=q|n`, hash diario sin IP).
+- [x] `/join/{código}`: marca, formulario (nombre + celular; correo y cumpleaños opcionales), consentimientos versionados y límite por IP.
+- [x] `POST /v1/public/register`: `member_scan_token` + `web_card_token` + `short_code`; celular existente → sin duplicar y enlace al correo registrado.
+- [x] **Tarjeta web** `/m/{web_card_token}` y página `/s/{member_scan_token}` sin datos personales.
+- [x] "Abrir mi tarjeta" (`localStorage`) + **recuperación** por correo y en el local (un solo uso).
+- [x] Panel mínimo: QR de la sucursal (PNG/SVG), URL para NFC y QR de recuperación.
+- [x] E2E en Android e iPhone emulados + job de E2E en CI.
+- [x] `pnpm local:tunnel` + checklist `prueba-celulares.md`.
+- [ ] **Prueba en celulares reales:** pendiente del fundador (el entorno de la sesión bloquea el túnel).
 
-**Demostrable:** un celular real escanea el QR (vía túnel), se registra un cliente ficticio y recibe su tarjeta web.
+**Demostrable:** `pnpm demo` → 8/8 en celulares emulados.
 
 ## Semana 4: Modo trabajador
+
+Arrastrado: mensaje de anulación (deuda #2), permiso de recuperación en caja para el trabajador (ya existe; falta su login con PIN).
 
 - [ ] Autorización de dispositivo (QR de 10 min → cookie) y revocación.
 - [ ] Trabajadores con PIN; login en caja (nombre + PIN), bloqueo por intentos, sesión de 12 h y "Cerrar turno".

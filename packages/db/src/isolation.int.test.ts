@@ -96,7 +96,10 @@ describe('RLS: lectura', () => {
       A.id,
       async (sql) => (await sql`select count(*)::int as n from app.customers`)[0]!.n,
     );
-    expect(n).toBe(A.customers);
+    // Otros tests registran clientes en este negocio: se compara contra el total real (visto como admin).
+    const [real] = await admin`select count(*)::int as n from app.customers where organization_id = ${A.id}`;
+    expect(n).toBe(real!.n);
+    expect(n).toBeGreaterThanOrEqual(A.customers);
   });
 
   it('el mismo celular en dos negocios son dos clientes independientes', async () => {

@@ -1,11 +1,32 @@
 import type { Actor } from '@aiment/core';
 import type { Db } from '@aiment/db';
+import type { Mailer } from '@aiment/mail';
 import type { AuthClaims, TokenVerifier } from './auth/verifier';
+import type { RateLimiter, RateLimits } from './rate-limit';
+
+export interface AppConfig {
+  requireSuperadminMfa: boolean;
+  /** Base pública configurada: se usa en enlaces que salen del sistema (correos, QR impresos). */
+  publicBaseUrl?: string;
+  /** true detrás de un proxy/túnel de confianza: la IP del cliente sale de X-Forwarded-For. */
+  trustProxy?: boolean;
+  rateLimits?: Partial<RateLimits>;
+  /** Sal para el hash diario de visitantes (no se guarda la IP). */
+  visitorSalt?: string;
+}
 
 export interface AppDeps {
   db: Db;
   verifier: TokenVerifier;
-  config: { requireSuperadminMfa: boolean };
+  config: AppConfig;
+  mailer?: Mailer;
+}
+
+/** Dependencias ya resueltas con valores por defecto (las usan las rutas). */
+export interface ResolvedDeps extends AppDeps {
+  mailer: Mailer;
+  publicBaseUrl: string;
+  limiter: RateLimiter;
 }
 
 export interface AppUser {
@@ -17,7 +38,7 @@ export interface AppUser {
 
 export type AppEnv = {
   Variables: {
-    deps: AppDeps;
+    deps: ResolvedDeps;
     claims: AuthClaims;
     user: AppUser;
     actor: Actor;

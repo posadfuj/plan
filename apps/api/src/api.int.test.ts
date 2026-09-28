@@ -5,7 +5,7 @@
 import { createDb, schema, withSystemTx, type DbHandle } from '@aiment/db';
 import { SEED, seedCustomerId, seedMembershipId } from '@aiment/db/seed-data';
 import { randomUUID } from 'node:crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { SignJWT } from 'jose';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { createApp, type App } from './app';
@@ -52,10 +52,14 @@ async function call(
   const t = tk ?? (userId ? await token(userId) : undefined);
   if (t) headers.authorization = `Bearer ${t}`;
   const res = await target.request(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  return {
-    status: res.status,
-    json: (await res.json()) as Record<string, unknown> & { error?: { code: string } },
-  };
+  const text = await res.text();
+  let json: Record<string, unknown> & { error?: { code: string } } = {};
+  try {
+    json = JSON.parse(text);
+  } catch {
+    /* respuesta no JSON (p. ej. SVG) */
+  }
+  return { status: res.status, json };
 }
 
 /**
@@ -78,6 +82,9 @@ const ORG_PATTERNS = [
   'POST /v1/orgs/:orgId/memberships/:membershipId/adjust',
   'POST /v1/orgs/:orgId/ledger/:entryId/void',
   'POST /v1/orgs/:orgId/redemptions/:redemptionId/void',
+  'GET /v1/orgs/:orgId/links',
+  'GET /v1/orgs/:orgId/links/:linkId/qr',
+  'POST /v1/orgs/:orgId/memberships/:membershipId/recovery',
 ];
 let ORG_ENDPOINTS: Endpoint[] = [];
 
@@ -109,6 +116,13 @@ beforeAll(async () => {
       .select({ id: schema.redemptions.id })
       .from(schema.redemptions)
       .where(eq(schema.redemptions.organizationId, A.id))
+      .limit(1),
+  );
+  const [link] = await withSystemTx(handle.db, (tx) =>
+    tx
+      .select({ id: schema.shortLinks.id })
+      .from(schema.shortLinks)
+      .where(eq(schema.shortLinks.organizationId, A.id))
       .limit(1),
   );
   const m = seedMembershipId('barberia', 3);
@@ -179,6 +193,13 @@ beforeAll(async () => {
       path: `${base}/redemptions/${redemption!.id}/void`,
       pattern: 'POST /v1/orgs/:orgId/redemptions/:redemptionId/void',
       body: { reason: 'Prueba de acceso' },
+    },
+    { method: 'GET', path: `${base}/links`, pattern: 'GET /v1/orgs/:orgId/links' },
+    { method: 'GET', path: `${base}/links/${link!.id}/qr`, pattern: 'GET /v1/orgs/:orgId/links/:linkId/qr' },
+    {
+      method: 'POST',
+      path: `${base}/memberships/${m}/recovery`,
+      pattern: 'POST /v1/orgs/:orgId/memberships/:membershipId/recovery',
     },
   ];
   const verifier = createSupabaseVerifier({ supabaseUrl: SUPABASE_URL, jwtSecret: JWT_SECRET });
@@ -267,8 +288,15 @@ describe('aislamiento entre negocios (API)', () => {
   it('el listado de clientes de A no contiene datos de otros negocios', async () => {
     const r = await call(app, 'GET', `/v1/orgs/${A.id}/customers?limit=100`, A.owner.id);
     const ids = (r.json.customers as { id: string }[]).map((c) => c.id);
-    expect(ids).toHaveLength(A.customers);
-    expect(ids.every((id) => id.startsWith('00000000-0000-4000-8000-00000010a'))).toBe(true);
+    expect(ids.length).toBeGreaterThanOrEqual(A.customers);
+    // Los tests de registro agregan clientes a este negocio: se compara contra la base, no contra un número fijo.
+    const foreign = await withSystemTx(handle.db, (tx) =>
+      tx
+        .select({ id: schema.customers.id })
+        .from(schema.customers)
+        .where(and(inArray(schema.customers.id, ids), ne(schema.customers.organizationId, A.id))),
+    );
+    expect(foreign).toHaveLength(0);
   });
 
   it('un orgId mal formado → 404', async () => {
@@ -303,9 +331,19 @@ describe('roles', () => {
     );
     // Puede haber más negocios (los tests del ledger crean los suyos); los 3 del seed deben estar con sus datos.
     expect(Object.keys(byId)).toEqual(expect.arrayContaining([A.id, B.id, C.id]));
-    expect(byId[A.id]).toMatchObject({ customers: A.customers, walletPasses: 5 });
-    expect(byId[B.id]).toMatchObject({ customers: B.customers });
-    expect(byId[C.id]).toMatchObject({ customers: C.customers });
+    const counts = await withSystemTx(handle.db, (tx) =>
+      tx.execute(
+        sql`select organization_id as id, count(*)::int as n from app.customers group by organization_id`,
+      ),
+    );
+    const real = Object.fromEntries(
+      (counts as unknown as { id: string; n: number }[]).map((r) => [r.id, r.n]),
+    );
+    for (const org of [A, B, C]) {
+      expect(byId[org.id]!.customers).toBe(real[org.id]);
+      expect(byId[org.id]!.customers).toBeGreaterThanOrEqual(org.customers);
+    }
+    expect(byId[A.id]!.walletPasses).toBe(5);
   });
 
   it('con MFA obligatorio, el superadmin necesita aal2 (TOTP)', async () => {

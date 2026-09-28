@@ -46,6 +46,13 @@ export const authEnvSchema = z.object({
 export const apiEnvSchema = dbEnvSchema.extend(authEnvSchema.shape).extend({
   API_PORT: z.coerce.number().int().default(8787),
   PUBLIC_BASE_URL: z.string().url().default('http://localhost:5173'),
+  /** true solo detrás de un proxy o túnel de confianza (Vite dev, Cloudflare). */
+  TRUST_PROXY: bool,
+  VISITOR_HASH_SALT: z.string().min(16).optional(),
+  /** Límites por IP (ver apps/api/src/rate-limit.ts). Vacíos = valores de producción. */
+  RATE_LIMIT_REGISTER: z.coerce.number().int().positive().optional(),
+  RATE_LIMIT_RECOVERY: z.coerce.number().int().positive().optional(),
+  RATE_LIMIT_REDEEM: z.coerce.number().int().positive().optional(),
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
