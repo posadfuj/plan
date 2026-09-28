@@ -111,6 +111,8 @@ Lo que la emulación **no** puede confirmar y ya se preparó en el código:
 | **Subtotal**                           | **226** | Antes 182. Cobertura del motor: 99 % (CI exige 90 %)                                                                                                           |
 | **E2E en celulares emulados**          | **18**  | 4 del cliente + 3 de caja + **2 del panel**, en Android (Pixel 7) e iPhone (14)                                                                                |
 
+**CI:** verde en GitHub Actions ([run #15](https://github.com/posadfuj/plan/actions/runs/36437458118)): formato, lint, tipos, migraciones, 226 tests, 20 E2E y gitleaks. El primer intento (run #13) falló en los E2E del panel por el bug de Chrome 153 de la sección 5; el #14 solo agregó diagnóstico.
+
 **Novedad en CI:** los E2E del panel ya **no se omiten** en GitHub Actions. Sin Supabase Auth, la prueba guarda en el navegador una sesión firmada igual que la de Supabase y crea el negocio con el mismo servicio del panel maestro. Localmente corren con login e invitación reales. Pasan 20/20 en los dos modos.
 
 **Seguridad del panel, verificada con pruebas:**
