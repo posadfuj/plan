@@ -1,9 +1,13 @@
 -- =============================================================================
--- Aiment Wallet: esquema de base de datos v1.0 (PostgreSQL 15+ / Supabase)
+-- Aiment Wallet: esquema de base de datos v1.1 (PostgreSQL 16, local-first)
 -- -----------------------------------------------------------------------------
 -- Es el punto de partida para las migraciones de Drizzle; no se ejecuta tal cual
--- en producción. Las tablas viven en el esquema "app", que NO se expone por la
--- Data API de Supabase: solo la API Node accede, con el rol app_api.
+-- en producción. Corre igual en PostgreSQL 16 local (Docker) y en cualquier
+-- Postgres gestionado. Las tablas viven en el esquema "app" y solo la API Node
+-- accede, con el rol app_api (sin BYPASSRLS). Si el proveedor final es
+-- Supabase, el esquema "app" NO se expone por su Data API.
+-- Las tablas de autenticación (user, session, account, verification) las crea
+-- y migra Better Auth en el esquema "auth"; aquí no se definen.
 --
 -- Aislamiento por tenant (defensa en profundidad):
 --   1. La API filtra siempre por organization_id.
@@ -100,7 +104,7 @@ create index on branches (organization_id);
 -- ---------------------------------------------------------------------------
 -- Usuarios, trabajadores y dispositivos de caja
 -- ---------------------------------------------------------------------------
--- users.id = auth.users.id de Supabase (dueños, admins y superadmin)
+-- users.id = id del usuario en Better Auth (dueños, admins y superadmin; generado como UUID)
 create table users (
   id             uuid primary key,
   email          citext not null unique,
@@ -257,8 +261,8 @@ create table memberships (
   organization_id    uuid not null references organizations(id),
   program_id         uuid not null references loyalty_programs(id),
   customer_id        uuid not null references customers(id),
-  member_token       text not null unique,      -- 128 bits, va en el QR que escanea el trabajador
-  card_token         text not null unique,      -- 128 bits, secreto de la URL de la tarjeta web
+  member_scan_token  text not null unique,      -- 128 bits, va en el QR que escanea la caja (/s/...); no abre datos privados
+  web_card_token     text not null unique,      -- 128 bits, URL secreta de la tarjeta web (/m/...); revocable (rotación)
   short_code         text not null,             -- 6–8 caracteres, respaldo manual en caja
   balance            int not null default 0,    -- materializado, solo lo cambia la API en transacción
   lifetime_earned    int not null default 0,
@@ -357,7 +361,8 @@ create table wallet_passes (
   organization_id  uuid not null references organizations(id),
   membership_id    uuid not null references memberships(id),
   provider         wallet_provider not null,
-  external_id      text not null,               -- Apple serialNumber / Google objectId
+  issuer_ref       text not null,               -- cuenta emisora usada (p. ej. 'apple:pass.com.aimentwallet.loyalty@individual-2026')
+  external_id      text not null,               -- Apple serialNumber / Google objectId (nunca un id interno)
   auth_token_hash  text,                        -- Apple authenticationToken (sha256)
   pass_version     int not null default 1,      -- sube con cada cambio visible
   status           pass_status not null default 'active',
@@ -389,6 +394,7 @@ create table google_wallet_classes (
   id              uuid primary key default gen_random_uuid(),
   organization_id uuid not null references organizations(id),
   program_id      uuid not null unique references loyalty_programs(id),
+  issuer_ref      text not null,                -- cuenta emisora de Google usada
   class_id        text not null unique,         -- "<issuerId>.aw_<program>"
   review_status   text,
   last_synced_at  timestamptz,
