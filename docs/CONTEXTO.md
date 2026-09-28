@@ -7,7 +7,7 @@
 - Rama de trabajo: `claude/loyalty-platform-technical-review-0qpg4x`.
 - **Semanas 1–5 aprobadas.** Después de aprobar la 5 se agregó editar nombre/celular del cliente desde la ficha (#23). Próxima: semana 6 (reportes, automatizaciones y hardening).
 - **Antes de la semana 6:** prueba en celulares físicos (iPhone, Android medio y bajo: cámara, QR, NFC, autorización de caja, recuperación, panel y sin conexión). Si aparece una diferencia importante con la emulación, se corrige primero (pedido del fundador).
-- Pruebas: 235 tests + 20 E2E (Android e iPhone emulados; los del panel también corren en CI). CI verde (run #15).
+- Pruebas: 235 tests + 22 E2E (incluye caja sin internet y respuesta perdida sin duplicar) (Android e iPhone emulados; los del panel también corren en CI). CI verde (run #15).
 
 ## Decisiones cerradas (no reabrir)
 
