@@ -51,6 +51,7 @@ La demo usa logins reales de Supabase Auth y la API real, y se puede ejecutar va
 
 - **Cobertura del motor:** 99,2 % de líneas y 98,3 % de ramas (100 % en los archivos del motor). CI exige un mínimo de 90 %.
 - **Estabilidad:** suite completa 3 veces seguidas en verde, más una simulación de CI (Postgres 17 limpio, sin Supabase ni `.env`): 117/117.
+- **CI en GitHub Actions:** verde ([run #3](https://github.com/posadfuj/plan/actions/runs/36386842677)): formato, lint, tipos, consistencia de migraciones, cobertura mínima, 117 tests y gitleaks.
 - **Concurrencia probada contra PostgreSQL real:**
 
 | Escenario                                      | Resultado                                                  |
