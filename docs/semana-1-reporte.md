@@ -6,12 +6,13 @@ Fecha: 28/09/2026 · Alcance: el aprobado en la arquitectura v1.1, sin funciones
 
 La base técnica está terminada y verificada. Todo corre en local con 3 comandos. El aislamiento entre negocios está probado en la base de datos y en la API, con logins reales de Supabase Auth. El Wallet simulado ya recibe eventos y reintenta si falla. Queda pendiente, por depender de tus cuentas, la prueba de Google Wallet con un Android real; el generador del enlace está listo.
 
-| Indicador                                                     | Resultado                                                                    |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Demo (`pnpm demo`)                                            | **19/19** verificaciones correctas                                           |
-| Tests automáticos                                             | **46** (8 unitarios + 38 de integración), estables en 4 ejecuciones seguidas |
-| Simulación de CI (Postgres 17 limpio, sin Supabase ni `.env`) | 46/46                                                                        |
-| Escaneo de secretos                                           | Sin hallazgos en el repositorio (solo el `.env` local, que no se sube)       |
+| Indicador                                                     | Resultado                                                                                                                                             |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Demo (`pnpm demo`)                                            | **19/19** verificaciones correctas                                                                                                                    |
+| Tests automáticos                                             | **46** (8 unitarios + 38 de integración), estables en 4 ejecuciones seguidas                                                                          |
+| Simulación de CI (Postgres 17 limpio, sin Supabase ni `.env`) | 46/46                                                                                                                                                 |
+| CI en GitHub Actions                                          | **Verde** en la primera ejecución: [run #1](https://github.com/posadfuj/plan/actions/runs/36383147690) (lint, tipos, migraciones, 46 tests, gitleaks) |
+| Escaneo de secretos                                           | Sin hallazgos en el repositorio (solo el `.env` local, que no se sube)                                                                                |
 
 ## Cómo ver la demo
 
