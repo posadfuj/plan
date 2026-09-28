@@ -25,7 +25,7 @@ Fecha: 28/09/2026 · Alcance congelado: panel del dueño completo (marca, progra
 
 ```bash
 pnpm local:setup     # o, si ya lo tenías: pnpm local:down && pnpm local:up && pnpm local:env && pnpm db:reset
-pnpm demo            # semana 5: panel de cero a la primera tarjeta + cliente + caja, en Android e iPhone emulados (18/18)
+pnpm demo            # semana 5: panel de cero a la primera tarjeta + cliente + caja, en Android e iPhone emulados (20/20)
 ```
 
 > Hay que reiniciar Supabase local una vez (`local:down` + `local:up`): el enlace de invitación del dueño ahora dura 24 horas (antes 1 hora).
@@ -48,7 +48,7 @@ pnpm demo            # semana 5: panel de cero a la primera tarjeta + cliente + 
 
 Tiempo del recorrido automatizado: **15 s (Android) y 13 s (iPhone)**. La meta del backlog (< 15 minutos) está pensada para una persona; ese tiempo real queda por medir contigo o con un piloto.
 
-Además se prueba en Android e iPhone: **límites del plan Start** en la veterinaria ("Tu plan Start permite 1 sucursal", "de 3 trabajadores · plan Start").
+Además se prueba en Android e iPhone: **límites del plan Start**, y que el panel no se cae en Chrome reciente (ver bugs), en la veterinaria ("Tu plan Start permite 1 sucursal", "de 3 trabajadores · plan Start").
 
 Capturas: `e2e/artifacts/*-panel-*.png`. Te envío algunas con este reporte.
 
@@ -86,12 +86,13 @@ Para destrabarlo hay dos caminos:
 
 Lo que la emulación **no** puede confirmar y ya se preparó en el código:
 
-| Riesgo en celular real                                   | Qué se hizo                                                                              | Qué mirar en la prueba      |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------- |
-| Fotos de varios MB y HEIC en iPhone                      | El panel achica la imagen en el celular antes de subirla; la API valida contenido        | P2 (galería y cámara)       |
-| Safari real: cámara, permisos y lector de QR de respaldo | Sin cambios desde la semana 4                                                            | C6 con poca luz             |
-| Pérdida de señal en la caja                              | Franja roja inmediata + reintento sin duplicar                                           | C15 (modo avión)            |
-| Android de gama baja: velocidad del panel                | El panel se descarga aparte (~73 kB comprimido); la tarjeta del cliente sigue en ~111 kB | P11 y tiempos de caja (C13) |
+| Riesgo en celular real                                       | Qué se hizo                                                                              | Qué mirar en la prueba                  |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------- | --------------------------------------- |
+| Fotos de varios MB y HEIC en iPhone                          | El panel achica la imagen en el celular antes de subirla; la API valida contenido        | P2 (galería y cámara)                   |
+| Safari real: cámara, permisos y lector de QR de respaldo     | Sin cambios desde la semana 4                                                            | C6 con poca luz                         |
+| Pérdida de señal en la caja                                  | Franja roja inmediata + reintento sin duplicar                                           | C15 (modo avión)                        |
+| Navegador más nuevo que la emulación (Chrome 153 en Android) | Ya apareció un caso en CI y se corrigió (sección 5)                                      | Todo el panel en un Android actualizado |
+| Android de gama baja: velocidad del panel                    | El panel se descarga aparte (~73 kB comprimido); la tarjeta del cliente sigue en ~111 kB | P11 y tiempos de caja (C13)             |
 
 **Tu criterio:** si aparece una diferencia importante respecto de la emulación, se corrige antes de avanzar. Como la prueba no pudo hacerse, **recomiendo no iniciar la semana 6 hasta tener esos resultados** (o iniciarla sabiendo que las correcciones que salgan tendrán prioridad).
 
@@ -110,7 +111,7 @@ Lo que la emulación **no** puede confirmar y ya se preparó en el código:
 | **Subtotal**                           | **226** | Antes 182. Cobertura del motor: 99 % (CI exige 90 %)                                                                                                           |
 | **E2E en celulares emulados**          | **18**  | 4 del cliente + 3 de caja + **2 del panel**, en Android (Pixel 7) e iPhone (14)                                                                                |
 
-**Novedad en CI:** los E2E del panel ya **no se omiten** en GitHub Actions. Sin Supabase Auth, la prueba guarda en el navegador una sesión firmada igual que la de Supabase y crea el negocio con el mismo servicio del panel maestro. Localmente corren con login e invitación reales. Pasan 18/18 en los dos modos.
+**Novedad en CI:** los E2E del panel ya **no se omiten** en GitHub Actions. Sin Supabase Auth, la prueba guarda en el navegador una sesión firmada igual que la de Supabase y crea el negocio con el mismo servicio del panel maestro. Localmente corren con login e invitación reales. Pasan 20/20 en los dos modos.
 
 **Seguridad del panel, verificada con pruebas:**
 
@@ -125,16 +126,17 @@ Lo que la emulación **no** puede confirmar y ya se preparó en el código:
 
 ## 5. Bugs encontrados y corregidos
 
-| Bug                                                                                                                                                                    | Cómo se detectó                        | Corrección                                                                    |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------- |
-| Con colores de marca de tono medio (grises, celestes), el texto del encabezado quedaba en 4,48:1, por debajo del mínimo AA (4,5)                                       | Test unitario nuevo de contraste       | Texto negro puro en lugar de gris muy oscuro: siempre ≥ 4,58:1                |
-| Si el dueño cambiaba la sucursal de un trabajador, su turno abierto en la otra sucursal seguía válido hasta 12 h                                                       | Revisión del diseño + test             | El turno revisa la sucursal en cada acción y se cierra al cambiarla           |
-| Bloquear a un cliente hacía que su tarjeta dijera "este enlace ya no funciona" y el celular borrara el enlace guardado: al desbloquear, el cliente ya no la encontraba | Revisión del flujo de bloqueo          | La tarjeta bloqueada abre, dice "pausada" y oculta el QR                      |
-| Al guardar la regla del programa, el formulario se recargaba con la versión nueva y el mensaje "Regla guardada" desaparecía al instante                                | E2E del panel                          | La confirmación se muestra a nivel de la sección                              |
-| El tope de trabajadores daba error 500: Postgres no acepta `FOR UPDATE` sobre una consulta con el esquema en el nombre                                                 | Suite de caja (antes de publicar nada) | Bloqueo en una consulta separada                                              |
-| El validador rechazaba correos con tildes o ñ (deuda #9)                                                                                                               | Deuda de la semana 3                   | Validación propia que acepta letras de cualquier idioma                       |
-| La cobertura del motor bajó a 88 % por las funciones nuevas de marca                                                                                                   | Mismo chequeo que CI                   | Tests de lectura de la marca guardada (datos viejos, basura, claves de logo)  |
-| El enlace de invitación vencía en 1 hora                                                                                                                               | Revisión                               | 24 horas (`supabase/config.toml`) + "Reenviar invitación" en el panel maestro |
+| Bug                                                                                                                                                                                                                                 | Cómo se detectó                        | Corrección                                                                                                                                               |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Al cambiar de sección, el panel se caía con "Something went wrong!" en Chrome reciente (153): ahí `window.scrollTo` devuelve una Promise y React la tomaba como limpieza de un efecto. En la emulación local (Chrome 141) no pasaba | **CI** (primer intento, 6 E2E en rojo) | Efecto corregido + prueba de regresión que simula ese Chrome + pantalla de error en español ("Algo salió mal · Recargar") en lugar del mensaje en inglés |
+| Con colores de marca de tono medio (grises, celestes), el texto del encabezado quedaba en 4,48:1, por debajo del mínimo AA (4,5)                                                                                                    | Test unitario nuevo de contraste       | Texto negro puro en lugar de gris muy oscuro: siempre ≥ 4,58:1                                                                                           |
+| Si el dueño cambiaba la sucursal de un trabajador, su turno abierto en la otra sucursal seguía válido hasta 12 h                                                                                                                    | Revisión del diseño + test             | El turno revisa la sucursal en cada acción y se cierra al cambiarla                                                                                      |
+| Bloquear a un cliente hacía que su tarjeta dijera "este enlace ya no funciona" y el celular borrara el enlace guardado: al desbloquear, el cliente ya no la encontraba                                                              | Revisión del flujo de bloqueo          | La tarjeta bloqueada abre, dice "pausada" y oculta el QR                                                                                                 |
+| Al guardar la regla del programa, el formulario se recargaba con la versión nueva y el mensaje "Regla guardada" desaparecía al instante                                                                                             | E2E del panel                          | La confirmación se muestra a nivel de la sección                                                                                                         |
+| El tope de trabajadores daba error 500: Postgres no acepta `FOR UPDATE` sobre una consulta con el esquema en el nombre                                                                                                              | Suite de caja (antes de publicar nada) | Bloqueo en una consulta separada                                                                                                                         |
+| El validador rechazaba correos con tildes o ñ (deuda #9)                                                                                                                                                                            | Deuda de la semana 3                   | Validación propia que acepta letras de cualquier idioma                                                                                                  |
+| La cobertura del motor bajó a 88 % por las funciones nuevas de marca                                                                                                                                                                | Mismo chequeo que CI                   | Tests de lectura de la marca guardada (datos viejos, basura, claves de logo)                                                                             |
+| El enlace de invitación vencía en 1 hora                                                                                                                                                                                            | Revisión                               | 24 horas (`supabase/config.toml`) + "Reenviar invitación" en el panel maestro                                                                            |
 
 ## 6. Deuda técnica pendiente
 

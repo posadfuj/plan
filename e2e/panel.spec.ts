@@ -268,3 +268,26 @@ test('límites del plan Start en el panel (sucursales y trabajadores)', async ({
   await expect(page.getByTestId('staff-usage')).toContainText(/de 3 trabajadores · plan Start/);
   await shot(page, '10-limites-plan');
 });
+
+// Regresión: en Chrome 153 (el de CI) window.scrollTo devuelve una Promise; el panel la devolvía como
+// "limpieza" de un efecto y al cambiar de sección se caía. Se simula para probarlo con cualquier Chromium.
+test('cambiar de sección no rompe el panel cuando scrollTo devuelve una Promise', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = window.scrollTo.bind(window) as (...a: unknown[]) => void;
+    (window as unknown as { scrollTo: (...a: unknown[]) => Promise<void> }).scrollTo = (...a) => {
+      original(...a);
+      return Promise.resolve();
+    };
+  });
+  await panelLogin(page, SEED.orgs.veterinaria.owner, '/panel/sucursales');
+  await expect(page.getByTestId('branch-usage')).toBeVisible();
+  for (const [label, testId] of [
+    ['Equipo', 'staff-usage'],
+    ['Clientes', 'customers'],
+    ['Inicio', 'plan-usage'],
+  ] as const) {
+    await nav(page, label);
+    await expect(page.getByTestId(testId)).toBeVisible();
+  }
+  await expect(page.getByTestId('app-error')).toHaveCount(0);
+});

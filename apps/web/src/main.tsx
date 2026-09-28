@@ -11,11 +11,15 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import { CardPage } from './routes/card';
 import { JoinPage } from './routes/join';
-import { HomePage, UnavailablePage } from './routes/misc';
+import { ErrorPage, HomePage, UnavailablePage } from './routes/misc';
 import { RecoverPage, RedeemPage } from './routes/recovery';
 import { ScanPage } from './routes/scan';
 
-const rootRoute = createRootRoute({ component: () => <Outlet />, notFoundComponent: UnavailablePage });
+const rootRoute = createRootRoute({
+  component: () => <Outlet />,
+  notFoundComponent: UnavailablePage,
+  errorComponent: ErrorPage,
+});
 const routeTree = rootRoute.addChildren([
   createRoute({ getParentRoute: () => rootRoute, path: '/', component: HomePage }),
   createRoute({ getParentRoute: () => rootRoute, path: '/join/$code', component: JoinPage }),

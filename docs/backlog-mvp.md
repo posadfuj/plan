@@ -113,7 +113,7 @@ Estado: **cerrada, pendiente de aprobación** (salvo la prueba en celulares real
 - [x] Caja sin modo offline documentada ([ADR 0004](./decisiones/0004-caja-requiere-conexion.md)) y avisada en la interfaz.
 - [ ] **Prueba en celulares reales** (cliente, caja y panel): pendiente del fundador (el entorno de la sesión bloquea el túnel).
 
-**Demostrable:** `pnpm demo` → 18/18: un negocio ficticio nuevo, de cero a su primera tarjeta y su primera visita en caja, **sin tocar código** (13–15 s automatizado; falta medirlo con una persona).
+**Demostrable:** `pnpm demo` → 20/20: un negocio ficticio nuevo, de cero a su primera tarjeta y su primera visita en caja, **sin tocar código** (13–15 s automatizado; falta medirlo con una persona).
 
 ## Semana 6: Reportes, automatizaciones y hardening
 

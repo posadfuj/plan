@@ -174,7 +174,10 @@ function Layout({
   const Current = SECTIONS.find((s) => s.key === section)!.Component;
   const [label, tone] = STATUS_LABEL[settings.status];
 
-  useEffect(() => window.scrollTo(0, 0), [section]);
+  // Con llaves: en Chrome reciente scrollTo devuelve una Promise y React la tomaría como limpieza del efecto.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [section]);
 
   return (
     <div className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-10 pt-3">

@@ -17,7 +17,7 @@ Plataforma de fidelización digital multi-negocio: puntos y sellos, tarjeta web,
 ```bash
 pnpm install
 pnpm local:setup   # levanta Supabase local, genera .env, migra y carga datos de prueba
-pnpm demo          # semana 5: panel del dueño de cero a la primera tarjeta + cliente + caja (18/18)
+pnpm demo          # semana 5: panel del dueño de cero a la primera tarjeta + cliente + caja (20/20)
                    # anteriores: pnpm demo:semana-4 · demo:semana-3 · demo:semana-2 · demo:semana-1
 ```
 
