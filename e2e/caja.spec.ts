@@ -197,6 +197,57 @@ test('flujo de caja completo con cámara, PIN, límites y anulación', async ({ 
   for (const [op, ms] of Object.entries(times)) expect(ms, op).toBeLessThan(5_000);
 });
 
+test('sin internet la caja avisa y, al volver la señal, no duplica la suma', async ({ page, playwright }) => {
+  test.setTimeout(90_000);
+  await registerCustomer(page, 'Carmen Huamán');
+  const cardUrl = page.url();
+  const shortCode = (await page.getByTestId('short-code').textContent())!.trim();
+  const { browser, page: caja } = await cashierBrowser(playwright, await decodeQr(page.getByTestId('qr')));
+
+  try {
+    const code = await pairingCodeFromDb('barberia', `Caja sin señal ${test.info().project.name}`);
+    await caja.goto(`/caja/vincular/${code}`);
+    await caja.getByRole('button', { name: 'Mario (caja)' }).click();
+    for (const d of STAFF_PIN) await caja.getByRole('button', { name: d, exact: true }).click();
+    await caja.getByRole('button', { name: 'Entrar' }).click();
+    await caja.getByPlaceholder('987 654 321 o ABC234').fill(shortCode);
+    await caja.getByRole('button', { name: 'Buscar' }).click();
+    await expect(caja.getByTestId('customer-name')).toHaveText('Carmen Huamán');
+
+    // 1. Modo avión: franja roja, la suma falla con un mensaje claro y no se registra nada.
+    await caja.context().setOffline(true);
+    await expect(caja.getByTestId('offline-banner')).toBeVisible();
+    await caja.getByTestId('earn').click();
+    await expect(caja.getByText('Sin conexión. Revisa tu internet').first()).toBeVisible();
+    await expect(caja.getByRole('button', { name: 'Reintentar (no se duplica)' })).toBeVisible();
+    await shot(caja, '8-sin-conexion');
+    await caja.context().setOffline(false);
+    await expect(caja.getByTestId('offline-banner')).toBeHidden();
+    await page.reload();
+    await expect(page.getByTestId('balance')).toContainText('0 sellos');
+
+    // 2. Señal débil: la suma LLEGA al servidor pero la respuesta se pierde en el camino.
+    let lost = false;
+    await caja.route('**/earn', async (route) => {
+      if (lost) return route.continue();
+      lost = true;
+      await route.fetch(); // el servidor registra la visita…
+      await route.abort('connectionreset'); // …y el celular nunca recibe la respuesta
+    });
+    await caja.getByTestId('earn').click();
+    await expect(caja.getByRole('button', { name: 'Reintentar (no se duplica)' })).toBeVisible();
+
+    // 3. Reintentar reenvía la MISMA operación: el servidor devuelve la ya registrada, no suma otra.
+    await caja.getByRole('button', { name: 'Reintentar (no se duplica)' }).click();
+    await expect(caja.getByTestId('feedback')).toContainText('+1 sello');
+    await expect(caja.getByTestId('cashier-balance')).toContainText('1 sellos');
+    await page.goto(cardUrl);
+    await expect(page.getByTestId('balance')).toContainText('1 sellos');
+  } finally {
+    await browser.close();
+  }
+});
+
 test('el dueño autoriza el dispositivo desde su panel', async ({ page, browser }) => {
   await panelLogin(page, SEED.orgs.barberia.owner, '/panel/cajas');
   await page.getByPlaceholder('Ej.: Celular del mostrador').fill('Tablet de la barra');
