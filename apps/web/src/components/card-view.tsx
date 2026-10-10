@@ -95,6 +95,17 @@ export function CardView({
         </p>
       )}
 
+      {card.message && card.status === 'active' && (
+        <div
+          className="mt-4 rounded-2xl border-2 bg-white p-4 text-center text-base font-semibold shadow-sm"
+          style={{ borderColor: branding.primaryColor }}
+          role="status"
+          data-testid="card-message"
+        >
+          {card.message.text}
+        </div>
+      )}
+
       <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm">
         <p className="text-sm text-gray-500">Tarjeta de</p>
         <p className="text-xl font-semibold" data-testid="customer-name">

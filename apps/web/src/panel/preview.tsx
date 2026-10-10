@@ -48,6 +48,7 @@ export function previewCard(
   return {
     organization: { id: 'preview', name: org.name, branding: org.branding },
     program: { name: program.name, mode: program.mode, unitLabel: program.unitLabel, goal },
+    message: null,
     customer: { name: 'Cliente de ejemplo', memberSince: new Date().toISOString() },
     status: 'active',
     balance,

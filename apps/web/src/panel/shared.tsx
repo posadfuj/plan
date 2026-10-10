@@ -203,3 +203,33 @@ export const fmtDateTime = (d: string | null) =>
 export function usageText(used: number, max: number | null, one: string, many: string) {
   return max === null ? `${used} ${used === 1 ? one : many}` : `${used} de ${max} ${max === 1 ? one : many}`;
 }
+
+/**
+ * Descarga un archivo de la API con la sesión del panel (CSV, PDF). Usa el nombre que manda el
+ * servidor; los errores llegan como ApiError con el mensaje de la API.
+ */
+export async function downloadFile(path: string, token: string, fallbackName: string): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(path, { headers: { authorization: `Bearer ${token}` } });
+  } catch {
+    throw new ApiError(0, 'network', 'Sin conexión. Revisa tu internet y vuelve a intentar.');
+  }
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as { error?: { code: string; message: string } } | null;
+    throw new ApiError(
+      res.status,
+      data?.error?.code ?? 'error',
+      data?.error?.message ?? 'No se pudo descargar.',
+    );
+  }
+  const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}

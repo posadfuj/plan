@@ -130,9 +130,12 @@ test('flujo de caja completo con cámara, PIN, límites y anulación', async ({ 
     await expect(caja.getByTestId('cashier-balance')).toContainText('1 sellos');
     await shot(caja, '4-sumado');
 
-    // La tarjeta del cliente se actualiza.
+    // La tarjeta del cliente se actualiza y muestra el mensaje automático de bienvenida (semana 6).
     await page.reload();
     await expect(page.getByTestId('balance')).toContainText('1 sellos');
+    await expect(page.getByTestId('card-message')).toHaveText(
+      '¡Gracias por tu primera visita! Ya empezaste a juntar sellos.',
+    );
 
     // 6. Segunda visita el mismo día → límite → excepción con PIN del dueño.
     await earnButton.click();

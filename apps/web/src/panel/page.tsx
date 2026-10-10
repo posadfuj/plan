@@ -1,6 +1,7 @@
 /**
- * Panel del dueño (semana 5). Todo lo que un negocio necesita configurar y administrar sin tocar código:
- * marca, programa, clientes, equipo con sucursal, cajas autorizadas y sucursales, dentro de su plan.
+ * Panel del dueño (semanas 5 y 6). Todo lo que un negocio necesita configurar y administrar sin tocar
+ * código: marca, programa (con mensajes automáticos), clientes, equipo con sucursal, cajas autorizadas,
+ * sucursales (con PDF de mostrador) y reportes con exportación CSV, dentro de su plan.
  * Pensado primero para el celular del dueño; en computadora se aprovecha el ancho.
  */
 import { Link, useParams } from '@tanstack/react-router';
@@ -13,6 +14,7 @@ import { CustomersSection } from './customers';
 import { DevicesSection } from './devices';
 import { HomeSection } from './home';
 import { ProgramSection } from './program';
+import { ReportsSection } from './reports';
 import {
   Badge,
   inputCls,
@@ -27,6 +29,7 @@ import { TeamSection } from './team';
 
 export const SECTIONS = [
   { key: 'inicio', label: 'Inicio', Component: HomeSection },
+  { key: 'reportes', label: 'Reportes', Component: ReportsSection },
   { key: 'marca', label: 'Marca', Component: BrandSection },
   { key: 'programa', label: 'Programa', Component: ProgramSection },
   { key: 'clientes', label: 'Clientes', Component: CustomersSection },

@@ -7,7 +7,7 @@
  * (Mailpit). En CI (sin Supabase Auth) el negocio se crea con el mismo servicio y la sesión se firma
  * como la de Supabase; el resto del recorrido es igual.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
@@ -279,6 +279,52 @@ test('límites del plan Start en el panel (sucursales y trabajadores)', async ({
   await nav(page, 'Equipo');
   await expect(page.getByTestId('staff-usage')).toContainText(/de 3 trabajadores · plan Start/);
   await shot(page, '10-limites-plan');
+});
+
+test('semana 6: reportes, CSV de clientes, PDF de mostrador y mensajes automáticos', async ({ page }) => {
+  await panelLogin(page, SEED.orgs.barberia.owner, '/panel/reportes');
+  await expect(page.getByTestId('stat-signups')).toBeVisible();
+  await expect(page.getByTestId('stat-visits')).toContainText('visitas en 30 días');
+  await expect(page.getByTestId('staff-activity')).toContainText('Jhon (caja)');
+  await page.getByRole('button', { name: '7 días' }).click();
+  await expect(page.getByTestId('stat-visits')).toContainText('visitas en 7 días');
+  await shot(page, '11-reportes');
+
+  // CSV de clientes: se descarga con el nombre del negocio y la fecha; encabezados en español.
+  const [csv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('export-customers').click(),
+  ]);
+  expect(csv.suggestedFilename()).toMatch(/^clientes-barberia-pedro-\d{4}-\d{2}-\d{2}\.csv$/);
+  const text = readFileSync((await csv.path())!, 'utf8');
+  expect(text.replace(/^\uFEFF/, '').split('\r\n')[0]).toContain('Nombre,Celular,Correo');
+  await expect(page.getByTestId('exports')).toContainText('Descarga lista.');
+
+  // PDF de mostrador de la sucursal.
+  await nav(page, 'Sucursales');
+  const [pdf] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Descargar PDF de mostrador' }).click(),
+  ]);
+  expect(pdf.suggestedFilename()).toBe('mostrador-barberia-pedro-sede-principal.pdf');
+  expect(
+    readFileSync((await pdf.path())!)
+      .subarray(0, 5)
+      .toString(),
+  ).toBe('%PDF-');
+
+  // Mensajes automáticos: activos en el plan Pro.
+  await nav(page, 'Programa');
+  const card = page.getByTestId('automations');
+  await expect(card).toContainText('Bienvenida');
+  await expect(page.getByTestId('automation-almost_there')).toContainText('Activo');
+  await shot(page, '12-mensajes');
+});
+
+test('mensajes automáticos en el plan Start: visibles pero no se activan', async ({ page }) => {
+  await panelLogin(page, SEED.orgs.veterinaria.owner, '/panel/programa');
+  await expect(page.getByTestId('automations')).toContainText('Incluidos desde el plan Pro');
+  await expect(page.getByRole('button', { name: /Apagar Bienvenida/ })).toBeDisabled();
 });
 
 // Regresión: en Chrome 153 (el de CI) window.scrollTo devuelve una Promise; el panel la devolvía como

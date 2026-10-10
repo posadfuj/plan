@@ -111,6 +111,13 @@ const ORG_PATTERNS = [
   'POST /v1/orgs/:orgId/memberships/:membershipId/rotate-card',
   'POST /v1/orgs/:orgId/team/:orgUserId/reactivate',
   'PATCH /v1/orgs/:orgId/team/:orgUserId',
+  // Semana 6: mensajes automáticos, reportes, exportación CSV y PDF de mostrador
+  'GET /v1/orgs/:orgId/automations',
+  'PATCH /v1/orgs/:orgId/automations/:key',
+  'GET /v1/orgs/:orgId/reports',
+  'GET /v1/orgs/:orgId/exports/customers.csv',
+  'GET /v1/orgs/:orgId/exports/movements.csv',
+  'GET /v1/orgs/:orgId/branches/:branchId/counter.pdf',
 ];
 let ORG_ENDPOINTS: Endpoint[] = [];
 
@@ -131,7 +138,8 @@ async function orgASnapshot() {
       (select count(*)::int from app.short_links where organization_id = ${A.id}) as links,
       (select string_agg(id::text || status::text || web_card_token_hash, ',' order by id) from app.memberships where organization_id = ${A.id}) as memberships,
       (select string_agg(id::text || status::text || coalesce(full_name, ''), ',' order by id) from app.customers where organization_id = ${A.id}) as customers,
-      (select string_agg(p.name || p.unit_label || p.mode::text || p.current_version_id::text, ',') from app.loyalty_programs p where organization_id = ${A.id}) as program`),
+      (select string_agg(p.name || p.unit_label || p.mode::text || p.current_version_id::text, ',') from app.loyalty_programs p where organization_id = ${A.id}) as program,
+      (select string_agg(key || enabled::text || config::text, ',' order by key) from app.automations where organization_id = ${A.id}) as automations`),
   );
   return r;
 }
@@ -388,6 +396,31 @@ beforeAll(async () => {
       path: `${base}/team/${tempStaff}`,
       pattern: 'PATCH /v1/orgs/:orgId/team/:orgUserId',
       body: { branchIds: [A.branchId] },
+    },
+    // Semana 6: mensajes automáticos, reportes, exportación CSV y PDF de mostrador.
+    { method: 'GET', path: `${base}/automations`, pattern: 'GET /v1/orgs/:orgId/automations' },
+    {
+      // Ya activada por defecto: el dueño la "activa" otra vez (no cambia el comportamiento de otras pruebas).
+      method: 'PATCH',
+      path: `${base}/automations/welcome`,
+      pattern: 'PATCH /v1/orgs/:orgId/automations/:key',
+      body: { enabled: true },
+    },
+    { method: 'GET', path: `${base}/reports?days=30`, pattern: 'GET /v1/orgs/:orgId/reports' },
+    {
+      method: 'GET',
+      path: `${base}/exports/customers.csv`,
+      pattern: 'GET /v1/orgs/:orgId/exports/customers.csv',
+    },
+    {
+      method: 'GET',
+      path: `${base}/exports/movements.csv?days=7`,
+      pattern: 'GET /v1/orgs/:orgId/exports/movements.csv',
+    },
+    {
+      method: 'GET',
+      path: `${base}/branches/${A.branchId}/counter.pdf`,
+      pattern: 'GET /v1/orgs/:orgId/branches/:branchId/counter.pdf',
     },
   ];
   const verifier = createSupabaseVerifier({ supabaseUrl: SUPABASE_URL, jwtSecret: JWT_SECRET });

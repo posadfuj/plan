@@ -77,6 +77,8 @@ export type RegisterResult =
 export interface Card {
   organization: { id: string; name: string; branding: Branding };
   program: { name: string; mode: 'stamps' | 'points'; unitLabel: string; goal: number | null };
+  /** Mensaje automático vigente (bienvenida, meta alcanzada, te falta poco). */
+  message: { key: 'welcome' | 'goal_reached' | 'almost_there'; text: string } | null;
   customer: { name: string; memberSince: string };
   /** blocked: el negocio pausó la tarjeta (no se muestra el QR). */
   status: 'active' | 'blocked';

@@ -8,7 +8,7 @@
  *  - member_scan_token → contenido del QR que escanea la caja (/s/...). Por sí solo no muestra datos.
  */
 import { createHash } from 'node:crypto';
-import { normalizePhone, publicBranding } from '@aiment/core';
+import { isCardMessageCurrent, normalizePhone, publicBranding, type AutomationKey } from '@aiment/core';
 import { schema, withSystemTx, withTenantTx, type Db, type Tx } from '@aiment/db';
 import type { Mailer } from '@aiment/mail';
 import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
@@ -32,6 +32,8 @@ const {
   earnedRewards,
   ledgerEntries,
   eventOutbox,
+  automations,
+  automationRuns,
 } = schema;
 
 export interface PublicDeps {
@@ -471,7 +473,7 @@ export async function getCard(db: Db, webCardToken: string) {
       .where(and(eq(rewards.programId, row.programId), eq(rewards.active, true)))
       .orderBy(asc(rewards.cost), asc(rewards.sortOrder));
     const available = await tx
-      .select({ name: rewards.name, expiresAt: earnedRewards.expiresAt })
+      .select({ id: earnedRewards.id, name: rewards.name, expiresAt: earnedRewards.expiresAt })
       .from(earnedRewards)
       .innerJoin(rewards, eq(rewards.id, earnedRewards.rewardId))
       .where(and(eq(earnedRewards.membershipId, row.membershipId), eq(earnedRewards.status, 'available')))
@@ -508,6 +510,44 @@ export async function getCard(db: Db, webCardToken: string) {
       ];
     }
 
+    // Último mensaje automático (semana 6), solo si sigue vigente y la automatización está activa.
+    let message: { key: AutomationKey; text: string } | null = null;
+    if (row.status === 'active') {
+      const [last] = await tx
+        .select({ result: automationRuns.result, createdAt: automationRuns.createdAt })
+        .from(automationRuns)
+        .innerJoin(automations, eq(automations.id, automationRuns.automationId))
+        .where(
+          and(
+            eq(automationRuns.membershipId, row.membershipId),
+            eq(automationRuns.status, 'done'),
+            eq(automations.enabled, true),
+          ),
+        )
+        .orderBy(desc(automationRuns.createdAt))
+        .limit(1);
+      const r = last?.result as
+        ({ key: AutomationKey; message: string } & Record<string, unknown>) | undefined;
+      if (
+        r &&
+        isCardMessageCurrent(
+          { key: r.key, message: r.message, data: r, createdAt: last!.createdAt },
+          {
+            mode: row.mode,
+            balance: row.balance,
+            goal: row.goal,
+            goalRewardName: rewardList.find((x) => x.kind === 'goal')?.name ?? null,
+            catalog: rewardList
+              .filter((x) => x.kind === 'catalog' && x.cost !== null)
+              .map((x) => ({ id: x.id, name: x.name, cost: x.cost! })),
+            availableEarnedRewardIds: available.map((a) => a.id),
+          },
+          new Date(),
+        )
+      )
+        message = { key: r.key, text: r.message };
+    }
+
     return {
       organization: {
         id: row.orgId,
@@ -515,6 +555,8 @@ export async function getCard(db: Db, webCardToken: string) {
         branding: publicBranding((row.branding ?? {}) as Record<string, unknown>),
       },
       program: { name: row.programName, mode: row.mode, unitLabel: row.unitLabel, goal: row.goal },
+      /** Mensaje automático vigente (bienvenida, meta alcanzada, te falta poco). */
+      message,
       customer: { name: row.fullName, memberSince: row.memberSince },
       balance: row.balance,
       progress,

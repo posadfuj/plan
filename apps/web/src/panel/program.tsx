@@ -5,6 +5,7 @@
  */
 import { PROGRAM_TEMPLATES } from '@aiment/core/templates';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { AutomationsCard } from './automations';
 import { Alert } from '../components/ui';
 import { CardPreview, previewCard, type ProgramData } from './preview';
 import { Badge, Card, Field, inputCls, SmallButton, useAction, usePanel } from './shared';
@@ -35,6 +36,7 @@ export function ProgramSection() {
           }}
         />
         <Rewards program={program} onSaved={load} />
+        <AutomationsCard />
       </div>
       <aside className="md:sticky md:top-16 md:self-start">
         <CardPreview card={previewCard(settings, { ...program, goal: program.rule.goal })} />

@@ -34,6 +34,8 @@ export interface RateLimits {
    * el intento entre dispositivos. Cada fallo queda además en la auditoría (quién y en qué caja).
    */
   staffOverrideOrg: number;
+  /** Exportaciones CSV por persona del panel cada hora (descargan datos de todos los clientes). */
+  export: number;
 }
 
 export const DEFAULT_RATE_LIMITS: RateLimits = {
@@ -48,6 +50,7 @@ export const DEFAULT_RATE_LIMITS: RateLimits = {
   staffSearch: 30,
   staffOverride: 10,
   staffOverrideOrg: 20,
+  export: 20,
 };
 
 export class RateLimiter {

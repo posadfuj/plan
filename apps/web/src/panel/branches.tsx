@@ -1,10 +1,20 @@
 /**
- * Sucursales: nombre y dirección, su QR y URL para NFC del mostrador, alta dentro del tope del plan,
+ * Sucursales: nombre y dirección, su QR, PDF de mostrador y URL para NFC, alta dentro del tope del plan,
  * y desactivación (su QR deja de registrar y sus cajas dejan de funcionar).
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from '../components/ui';
-import { Badge, Card, Field, inputCls, SmallButton, useAction, usageText, usePanel } from './shared';
+import {
+  Badge,
+  Card,
+  downloadFile,
+  Field,
+  inputCls,
+  SmallButton,
+  useAction,
+  usageText,
+  usePanel,
+} from './shared';
 
 interface Branch {
   id: string;
@@ -111,6 +121,24 @@ export function BranchesSection() {
                     {copied === b.id ? '¡Copiada!' : 'Copiar URL para NFC'}
                   </SmallButton>
                 </div>
+                <SmallButton
+                  className="mt-2 w-full"
+                  disabled={busy}
+                  data-testid={`counter-pdf-${b.id}`}
+                  onClick={() =>
+                    void run(
+                      () =>
+                        downloadFile(
+                          `/v1/orgs/${orgId}/branches/${b.id}/counter.pdf`,
+                          token,
+                          'mostrador.pdf',
+                        ),
+                      'PDF de mostrador descargado. Imprímelo en A5 o A4.',
+                    )
+                  }
+                >
+                  Descargar PDF de mostrador
+                </SmallButton>
                 <p className="mt-2 break-all text-xs text-gray-500">NFC: {b.nfcUrl}</p>
                 <p className="break-all text-xs text-gray-500">QR: {b.qrUrl}</p>
               </>

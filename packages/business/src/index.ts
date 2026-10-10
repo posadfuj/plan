@@ -4,3 +4,6 @@ export * from './settings';
 export * from './branches';
 export * from './customers';
 export * from './platform';
+export * from './reports';
+export * from './exports';
+export * from './counter-pdf';

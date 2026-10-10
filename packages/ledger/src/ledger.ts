@@ -32,6 +32,7 @@ import {
   type OperationResult,
   type Operator,
 } from './types';
+import { runAutomations, voidAutomationRuns } from './automations';
 
 const {
   memberships,
@@ -545,8 +546,23 @@ export async function earn(db: Db, orgId: string, input: EarnInput): Promise<Ope
         if (gift?.active) granted.push(await grantReward(w, gift, 'welcome', earnEntry.id));
       }
 
-      granted.push(...(await applyGoal(w, key, earnEntry.id)));
+      const goalIds = await applyGoal(w, key, earnEntry.id);
+      granted.push(...goalIds);
       await saveMembership(w, { lifetimeDelta, ...(isFirst ? { firstValidatedAt: now } : {}) });
+      await runAutomations(tx, {
+        orgId,
+        programId: ctx.programId,
+        membershipId: ctx.membership.id,
+        mode: ctx.rule.mode,
+        goal: ctx.rule.goal,
+        entryId: earnEntry.id,
+        balanceBefore: ctx.membership.balance,
+        balanceAfter: w.balance,
+        firstVisit: isFirst,
+        welcomeBonus: ctx.rule.welcomeBonus,
+        goalEarnedRewardIds: goalIds,
+        now,
+      });
 
       await emit(tx, orgId, ctx.membership.id, 'ledger.created', {
         entryId: earnEntry.id,
@@ -786,6 +802,21 @@ export async function adjust(db: Db, orgId: string, input: AdjustInput): Promise
       });
       const granted = input.delta > 0 ? await applyGoal(w, key, entry.id) : [];
       await saveMembership(w, {});
+      if (input.delta > 0)
+        await runAutomations(tx, {
+          orgId,
+          programId: ctx.programId,
+          membershipId: ctx.membership.id,
+          mode: ctx.rule.mode,
+          goal: ctx.rule.goal,
+          entryId: entry.id,
+          balanceBefore: ctx.membership.balance,
+          balanceAfter: w.balance,
+          firstVisit: false,
+          welcomeBonus: { type: 'none' },
+          goalEarnedRewardIds: granted,
+          now,
+        });
       await emit(tx, orgId, ctx.membership.id, 'ledger.created', { entryId: entry.id, kind: 'adjust' });
       if (granted.length)
         await emit(tx, orgId, ctx.membership.id, 'reward.earned', {
@@ -989,6 +1020,7 @@ export async function voidEntry(db: Db, orgId: string, input: VoidInput): Promis
         touch: false,
         ...(firstValidatedAt !== undefined ? { firstValidatedAt } : {}),
       });
+      await voidAutomationRuns(tx, orgId, ctx.membership.id, [target.id]);
 
       await emit(tx, orgId, ctx.membership.id, 'ledger.created', {
         entryId: w.entries.at(-1)!.id,

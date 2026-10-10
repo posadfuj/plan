@@ -1,12 +1,17 @@
 /**
- * Panel del dueño (semana 5): marca, programa, sucursales, clientes y equipo.
+ * Panel del dueño (semanas 5 y 6): marca, programa, mensajes automáticos, sucursales (con PDF de
+ * mostrador), clientes, equipo, reportes y exportación CSV.
  * Las operaciones de saldo (sumar, canjear, ajustar, anular) están en loyalty.ts;
  * el equipo de caja y los dispositivos, en team.ts.
  */
 import { can } from '@aiment/core';
 import {
   anonymizeCustomer,
+  counterPdf,
   createBranch,
+  exportCustomersCsv,
+  exportMovementsCsv,
+  getReport,
   getCustomer,
   getSettings,
   listBranches,
@@ -21,7 +26,7 @@ import {
   updateBranding,
   type Editor,
 } from '@aiment/business';
-import { applyTemplate, updateProgram } from '@aiment/ledger';
+import { applyTemplate, listAutomations, updateAutomation, updateProgram } from '@aiment/ledger';
 import { MAX_LOGO_BYTES } from '@aiment/storage';
 import { reactivateStaffMember, updateStaffMember } from '@aiment/staff';
 import { Hono, type Context } from 'hono';
@@ -29,7 +34,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { isUuid, requireOrgMember, requirePermission, requireUser } from '../auth/middleware';
 import type { AppEnv } from '../context';
 import { HttpError, notFound } from '../errors';
-import { jsonBody } from '../request';
+import { jsonBody, limit } from '../request';
 
 function editor(c: Context<AppEnv>): Editor {
   const actor = c.var.actor;
@@ -52,6 +57,18 @@ function uuidParam(c: Context<AppEnv>, name: string): string {
   const v = c.req.param(name);
   if (!isUuid(v)) throw notFound();
   return v;
+}
+
+/** CSV como descarga, sin caché (lleva datos de clientes). */
+function csvResponse(c: Context<AppEnv>, file: { filename: string; csv: string }) {
+  c.header('Content-Type', 'text/csv; charset=utf-8');
+  c.header('Content-Disposition', `attachment; filename="${file.filename}"`);
+  c.header('Cache-Control', 'no-store');
+  return c.body(file.csv);
+}
+
+function exportLimit(c: Context<AppEnv>) {
+  limit(c, 'export', 60 * 60_000, editor(c).orgUserId);
 }
 
 const logoLimit = bodyLimit({
@@ -92,6 +109,33 @@ export const panelRoutes = new Hono<AppEnv>()
     return c.json(await applyTemplate(c.var.deps.db, c.var.orgId, operator(c), b.template), 201);
   })
 
+  // --- Mensajes automáticos (semana 6) ---------------------------------------
+  .get('/automations', requirePermission('automations.manage'), async (c) =>
+    c.json(await listAutomations(c.var.deps.db, c.var.orgId)),
+  )
+
+  .patch('/automations/:key', requirePermission('automations.manage'), async (c) =>
+    c.json(
+      await updateAutomation(c.var.deps.db, c.var.orgId, operator(c), c.req.param('key'), await jsonBody(c)),
+    ),
+  )
+
+  // --- Reportes y exportación (semana 6) -------------------------------------
+  .get('/reports', requirePermission('reports.read'), async (c) => {
+    c.header('Cache-Control', 'no-store');
+    return c.json(await getReport(c.var.deps.db, c.var.orgId, c.req.query()));
+  })
+
+  .get('/exports/customers.csv', requirePermission('customers.export'), async (c) => {
+    exportLimit(c);
+    return csvResponse(c, await exportCustomersCsv(c.var.deps.db, c.var.orgId, editor(c)));
+  })
+
+  .get('/exports/movements.csv', requirePermission('customers.export'), async (c) => {
+    exportLimit(c);
+    return csvResponse(c, await exportMovementsCsv(c.var.deps.db, c.var.orgId, editor(c), c.req.query()));
+  })
+
   // --- Sucursales ----------------------------------------------------------
   .get('/branches', requirePermission('org.read'), async (c) =>
     c.json({ branches: await listBranches(c.var.deps.db, c.var.orgId, c.var.deps.publicBaseUrl) }),
@@ -106,6 +150,21 @@ export const panelRoutes = new Hono<AppEnv>()
       await updateBranch(c.var.deps.db, c.var.orgId, editor(c), uuidParam(c, 'branchId'), await jsonBody(c)),
     ),
   )
+
+  /** PDF de mostrador: marca + QR de registro de la sucursal + "Powered by Aiment Wallet". */
+  .get('/branches/:branchId/counter.pdf', requirePermission('links.manage'), async (c) => {
+    const pdf = await counterPdf(
+      c.var.deps.db,
+      c.var.deps.storage,
+      c.var.orgId,
+      uuidParam(c, 'branchId'),
+      c.var.deps.publicBaseUrl,
+    );
+    c.header('Content-Type', 'application/pdf');
+    c.header('Content-Disposition', `attachment; filename="${pdf.filename}"`);
+    c.header('Cache-Control', 'no-store');
+    return c.body(new Uint8Array(pdf.bytes));
+  })
 
   .post('/branches/:branchId/deactivate', requirePermission('branches.manage'), async (c) =>
     c.json(await setBranchActive(c.var.deps.db, c.var.orgId, editor(c), uuidParam(c, 'branchId'), false)),
