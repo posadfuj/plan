@@ -99,7 +99,14 @@ function CustomerList({ unit, onOpen }: { unit: string; onOpen: (id: string) => 
       limit: String(PAGE),
       offset: String(query.offset),
     });
-    void call<{ customers: Row[]; total: number }>(`/customers?${p}`).then(setData);
+    // Solo vale la respuesta de la ÚLTIMA búsqueda: una anterior que llegue tarde (celular lento) no la pisa.
+    let current = true;
+    void call<{ customers: Row[]; total: number }>(`/customers?${p}`).then((r) => {
+      if (current) setData(r);
+    });
+    return () => {
+      current = false;
+    };
   }, [call, query]);
 
   // Búsqueda mientras se escribe (con una pausa corta).

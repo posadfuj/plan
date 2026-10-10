@@ -321,6 +321,25 @@ test('semana 6: reportes, CSV de clientes, PDF de mostrador y mensajes automáti
   await shot(page, '12-mensajes');
 });
 
+// Regresión (encontrada en la semana 6): la lista inicial sin filtro llegaba DESPUÉS que la búsqueda
+// (celular lento) y la pisaba: el dueño veía la lista general en lugar del cliente que buscó.
+test('buscar cliente: una respuesta vieja que llega tarde no pisa la búsqueda', async ({ page }) => {
+  await page.route(
+    (url) => url.pathname.endsWith('/customers') && (url.searchParams.get('q') ?? '') === '',
+    async (route) => {
+      await new Promise((r) => setTimeout(r, 2500));
+      await route.continue();
+    },
+  );
+  await panelLogin(page, SEED.orgs.barberia.owner, '/panel/clientes');
+  const list = page.getByTestId('customers');
+  await page.getByLabel('Buscar cliente').fill('Ana Chávez');
+  await expect(list.getByRole('heading')).toHaveText('Clientes (1)');
+  await page.waitForTimeout(3000); // la lista sin filtro ya llegó…
+  await expect(list.getByRole('heading')).toHaveText('Clientes (1)'); // …y no pisó el resultado
+  await expect(list.getByRole('button', { name: /Ana Chávez/ })).toBeVisible();
+});
+
 test('mensajes automáticos en el plan Start: visibles pero no se activan', async ({ page }) => {
   await panelLogin(page, SEED.orgs.veterinaria.owner, '/panel/programa');
   await expect(page.getByTestId('automations')).toContainText('Incluidos desde el plan Pro');
