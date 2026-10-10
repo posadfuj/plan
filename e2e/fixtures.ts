@@ -1,8 +1,9 @@
 /**
  * `test` con un control automático: si el navegador bloquea algo por la política de seguridad (CSP),
- * la prueba falla (un logo o un QR bloqueado podría pasar inadvertido). Cubre también los contextos
- * extra que abren las pruebas (cliente y caja a la vez). La CSP solo se aplica con `vite preview`
- * (CI); con `pnpm dev` no hay política y el control no encuentra nada.
+ * la prueba falla (un logo o un QR bloqueado podría pasar inadvertido). Cubre las páginas del
+ * navegador de la prueba y los contextos extra que abre (otro celular del cliente, el panel). La caja
+ * con cámara simulada corre en un navegador propio y no entra en este control.
+ * La CSP solo se aplica con `vite preview` (CI); con `pnpm dev` no hay política.
  */
 import { expect, test as base, type BrowserContext, type Page } from '@playwright/test';
 

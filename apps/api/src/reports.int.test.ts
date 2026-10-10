@@ -309,6 +309,17 @@ describe('mensajes automáticos por HTTP', () => {
     expect([denied.status, denied.json.error.code]).toEqual([409, 'plan_feature']);
   });
 
+  it('1.ª visita que además completa la meta: la tarjeta muestra el premio, no la bienvenida (bug de la semana 6)', async () => {
+    const c = await register('qr', 'Primera Con Premio');
+    await req('POST', `${base}/memberships/${c.membershipId}/adjust`, {
+      user: owner,
+      body: { delta: 9, reason: 'Migración de tarjeta física' },
+    });
+    await req('POST', `${base}/memberships/${c.membershipId}/earn`, { user: owner, body: {} });
+    const card = (await req('GET', `/v1/public/cards/${c.webCardToken}`)).json;
+    expect(card.message.key).toBe('goal_reached');
+  });
+
   it('la tarjeta del cliente muestra el mensaje vigente: bienvenida en la 1.ª visita', async () => {
     const c = await register('qr', 'Mensaje Tarjeta');
     expect((await req('GET', `/v1/public/cards/${c.webCardToken}`)).json.message).toBeNull();

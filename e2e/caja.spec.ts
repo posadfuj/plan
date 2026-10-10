@@ -12,7 +12,15 @@ import { join } from 'node:path';
 import type { Browser, BrowserContext, Page, PlaywrightWorkerArgs } from '@playwright/test';
 import { expect, test } from './fixtures';
 import { SEED } from '@aiment/db/seed-data';
-import { decodeQr, pairingCodeFromDb, panelLogin, qrVideo, randomPhone } from './helpers';
+import {
+  apiAs,
+  decodeQr,
+  membershipIdByShortCode,
+  pairingCodeFromDb,
+  panelLogin,
+  qrVideo,
+  randomPhone,
+} from './helpers';
 
 const LINK = 'BRB2K'; // Barbería Pedro
 const STAFF_PIN = '2580'; // PIN de los trabajadores del seed
@@ -197,6 +205,59 @@ test('flujo de caja completo con cámara, PIN, límites y anulación', async ({ 
   );
   test.info().annotations.push({ type: 'tiempos (ms)', description: JSON.stringify(times) });
   for (const [op, ms] of Object.entries(times)) expect(ms, op).toBeLessThan(5_000);
+});
+
+test('meta completa → premio → canje en caja; la tarjeta del cliente lo acompaña con sus mensajes', async ({
+  page,
+  playwright,
+  baseURL,
+}) => {
+  test.setTimeout(90_000);
+  await registerCustomer(page, 'Paola Premio');
+  const shortCode = (await page.getByTestId('short-code').textContent())!.trim();
+  // Tarjeta física migrada: el dueño carga 9 de 10 sellos desde el panel.
+  const org = SEED.orgs.barberia;
+  const m = await membershipIdByShortCode('barberia', shortCode);
+  await apiAs(baseURL!, org.owner.id, 'POST', `/v1/orgs/${org.id}/memberships/${m}/adjust`, {
+    delta: 9,
+    reason: 'Migración de tarjeta física',
+  });
+  await page.reload();
+  await expect(page.getByTestId('card-message')).toHaveText('¡Solo te falta 1 para Corte gratis!');
+
+  const { browser, page: caja } = await cashierBrowser(playwright, await decodeQr(page.getByTestId('qr')), {
+    throttle: false,
+  });
+  try {
+    await caja.goto(`/caja/vincular/${await pairingCodeFromDb('barberia', 'Caja premios')}`);
+    await caja.getByRole('button', { name: 'Mario (caja)' }).click();
+    for (const d of STAFF_PIN) await caja.getByRole('button', { name: d, exact: true }).click();
+    await caja.getByRole('button', { name: 'Entrar' }).click();
+    await caja.getByRole('button', { name: /ESCANEAR CLIENTE/ }).click();
+    await expect(caja.getByTestId('customer-name')).toHaveText('Paola Premio', { timeout: 15_000 });
+
+    // La visita 10 completa la tarjeta: premio ganado.
+    await caja.getByTestId('earn').click();
+    await expect(caja.getByTestId('feedback')).toContainText('¡premio ganado: Corte gratis!');
+    await page.reload();
+    await expect(page.getByTestId('card-message')).toContainText(
+      '¡Completaste tu tarjeta! Ganaste: Corte gratis',
+    );
+    await expect(page.getByTestId('balance')).toContainText('0 sellos');
+
+    // Canje en caja (con confirmación).
+    await caja.getByRole('button', { name: 'Canjear: Corte gratis' }).click();
+    await caja.getByTestId('confirm-redeem').getByRole('button', { name: 'Sí, canjear' }).click();
+    await expect(caja.getByTestId('feedback')).toContainText('Premio canjeado');
+    await expect(caja.getByRole('button', { name: 'Canjear: Corte gratis' })).toHaveCount(0);
+
+    // Ya canjeado: la tarjeta deja de decir "muéstralo en caja".
+    await page.reload();
+    await expect(page.getByTestId('card-message')).toHaveCount(0);
+    await expect(page.getByTestId('balance')).toContainText('0 sellos');
+  } finally {
+    await browser.close();
+  }
 });
 
 test('sin internet la caja avisa y, al volver la señal, no duplica la suma', async ({ page, playwright }) => {

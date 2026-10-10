@@ -17,7 +17,7 @@
     "db:seed": "pnpm --filter @aiment/db seed",
     "db:reset": "pnpm --filter @aiment/db reset",
     "db:generate": "pnpm --filter @aiment/db generate",
-    "demo": "tsx scripts/demo-semana-5.ts",
+    "demo": "tsx scripts/demo-semana-6.ts",
     "wallet:google-demo": "pnpm --filter @aiment/wallet google-demo",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -31,7 +31,8 @@
     "demo:semana-3": "tsx scripts/demo-semana-3.ts",
     "local:tunnel": "tsx scripts/tunnel.ts",
     "e2e": "playwright test -c e2e/playwright.config.ts",
-    "demo:semana-4": "tsx scripts/demo-semana-4.ts"
+    "demo:semana-4": "tsx scripts/demo-semana-4.ts",
+    "demo:semana-5": "tsx scripts/demo-semana-5.ts"
   },
   "devDependencies": {
     "@aiment/api": "workspace:*",

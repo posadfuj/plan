@@ -197,3 +197,45 @@ export async function superadminApi(baseURL: string, method: string, path: strin
   if (!res.ok) throw new Error(`${method} ${path} → ${res.status} ${await res.text()}`);
   return res.json();
 }
+
+/** Llamada a la API como un usuario del panel (dueño/admin), con la misma firma que Supabase Auth. */
+export async function apiAs(
+  baseURL: string,
+  userId: string,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<unknown> {
+  loadRootEnv();
+  const token = await new SignJWT({ role: 'authenticated', aal: 'aal1' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setSubject(userId)
+    .setIssuer(`${(process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321').replace(/\/$/, '')}/auth/v1`)
+    .setAudience('authenticated')
+    .setExpirationTime('5m')
+    .sign(new TextEncoder().encode(process.env.SUPABASE_JWT_SECRET!));
+  const res = await fetch(new URL(path, baseURL), {
+    method,
+    headers: {
+      authorization: `Bearer ${token}`,
+      'content-type': 'application/json',
+      'idempotency-key': `e2e_${randomUUID().replaceAll('-', '')}`,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${method} ${path} → ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+/** Membresía de un cliente por el código de su tarjeta (para preparar datos de una prueba). */
+export async function membershipIdByShortCode(orgKey: SeedOrgKey, shortCode: string): Promise<string> {
+  loadRootEnv();
+  const sql = postgres(process.env.DATABASE_ADMIN_URL!, { max: 1, onnotice: () => {} });
+  try {
+    const [m] = await sql`select id from app.memberships
+      where organization_id = ${SEED.orgs[orgKey].id} and short_code = ${shortCode}`;
+    return m!.id as string;
+  } finally {
+    await sql.end();
+  }
+}

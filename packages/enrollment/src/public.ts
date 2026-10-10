@@ -524,7 +524,11 @@ export async function getCard(db: Db, webCardToken: string) {
             eq(automations.enabled, true),
           ),
         )
-        .orderBy(desc(automationRuns.createdAt))
+        // Una misma operación puede dejar varios (1.ª visita que completa la meta): gana el más importante.
+        .orderBy(
+          desc(automationRuns.createdAt),
+          sql`case ${automationRuns.result}->>'key' when 'goal_reached' then 0 when 'almost_there' then 1 else 2 end`,
+        )
         .limit(1);
       const r = last?.result as
         ({ key: AutomationKey; message: string } & Record<string, unknown>) | undefined;
