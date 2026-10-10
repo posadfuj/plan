@@ -66,6 +66,10 @@ async function cashierBrowser(
     locale: 'es-PE',
     permissions: ['camera'],
   });
+  // Safari no trae BarcodeDetector: el "iPhone" emulado usa el lector zxing-wasm, como el real.
+  if (test.info().project.name === 'iphone') {
+    await context.addInitScript(() => delete (window as { BarcodeDetector?: unknown }).BarcodeDetector);
+  }
   const page = await context.newPage();
   if (!throttle) return { browser, page };
   // Android de gama media: CPU 4× más lenta y red móvil.

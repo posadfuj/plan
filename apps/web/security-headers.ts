@@ -6,7 +6,9 @@
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self'",
+  // wasm-unsafe-eval: el lector de QR (zxing-wasm, iPhone/Safari) compila su .wasm. Solo habilita
+  // WebAssembly; `eval` de JavaScript sigue bloqueado.
+  "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self'",
   // blob: el PNG del QR de la sucursal y la vista previa del logo antes de subirlo.
   "img-src 'self' blob: data:",
