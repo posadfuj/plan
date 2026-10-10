@@ -2,7 +2,7 @@
  * Envío de correos transaccionales. Local: SMTP de Mailpit (Supabase local). Tests: buzón en memoria.
  * Producción (semana 9): proveedor transaccional por SMTP con las mismas variables.
  */
-import nodemailer from 'nodemailer';
+import { createTransport, type Mail } from 'nodemailer';
 
 export interface MailMessage {
   to: string;
@@ -27,12 +27,12 @@ export class MemoryMailer implements Mailer {
 }
 
 export class SmtpMailer implements Mailer {
-  private readonly transport: nodemailer.Transporter;
+  private readonly transport: Mail;
   constructor(
     opts: { host: string; port: number; secure?: boolean; user?: string; pass?: string },
     private readonly from: string,
   ) {
-    this.transport = nodemailer.createTransport({
+    this.transport = createTransport({
       host: opts.host,
       port: opts.port,
       secure: opts.secure ?? false,

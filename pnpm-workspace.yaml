@@ -5,3 +5,8 @@ packages:
 onlyBuiltDependencies:
   - esbuild
   - supabase
+
+# Hardening (semana 6): versiones corregidas de dependencias de desarrollo con avisos de `pnpm audit`.
+overrides:
+  '@esbuild-kit/core-utils>esbuild': ^0.25.12
+  source-map-js: ^1.2.2

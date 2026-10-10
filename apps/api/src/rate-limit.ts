@@ -29,6 +29,11 @@ export interface RateLimits {
   staffSearch: number;
   /** Intentos de PIN del dueño (excepciones) por dispositivo cada 15 minutos. */
   staffOverride: number;
+  /**
+   * PIN del dueño equivocado en TODAS las cajas del negocio cada 15 minutos: no se puede repartir
+   * el intento entre dispositivos. Cada fallo queda además en la auditoría (quién y en qué caja).
+   */
+  staffOverrideOrg: number;
 }
 
 export const DEFAULT_RATE_LIMITS: RateLimits = {
@@ -42,6 +47,7 @@ export const DEFAULT_RATE_LIMITS: RateLimits = {
   staffLogin: 20,
   staffSearch: 30,
   staffOverride: 10,
+  staffOverrideOrg: 20,
 };
 
 export class RateLimiter {
@@ -63,6 +69,17 @@ export class RateLimiter {
     entry.count++;
     if (entry.count > limit) return { ok: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
     return { ok: true };
+  }
+
+  /** ¿Está bloqueada la clave? (sin contar un intento nuevo). */
+  blocked(
+    key: string,
+    limit: number,
+    now = Date.now(),
+  ): { blocked: false } | { blocked: true; retryAfter: number } {
+    const entry = this.hits.get(key);
+    if (!entry || entry.resetAt <= now || entry.count < limit) return { blocked: false };
+    return { blocked: true, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
   }
 
   private sweep(now: number) {

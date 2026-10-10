@@ -14,6 +14,7 @@ import {
   membershipIdByScanToken,
   resolveShift,
   searchMemberships,
+  recordOverridePinFailure,
   startShift,
   verifyOverridePin,
 } from '@aiment/staff';
@@ -32,6 +33,7 @@ import {
 } from '../auth/register';
 import type { AppEnv } from '../context';
 import { HttpError, notFound } from '../errors';
+import { DEFAULT_RATE_LIMITS } from '../rate-limit';
 import { jsonBody, limit, privateHeaders, TEN_MIN } from '../request';
 
 const amount = z.union([z.number(), z.string().trim().max(20)]).nullish();
@@ -69,6 +71,33 @@ function operatorFrom(c: Context<AppEnv>): Operator {
     canVoidAny: can(actor, 'ledger.void.any', actor.orgId),
     canOverrideLimits: can(actor, 'limits.override', actor.orgId),
   };
+}
+
+const OVERRIDE_WINDOW = 15 * 60_000;
+const overrideOrgKey = (orgId: string) => `staffOverrideOrg:${orgId}`;
+const overrideOrgMax = (c: Context<AppEnv>) =>
+  c.var.deps.config.rateLimits?.staffOverrideOrg ?? DEFAULT_RATE_LIMITS.staffOverrideOrg;
+
+/** Tope por negocio de PIN del dueño equivocados, sumando todas sus cajas (deuda #16). */
+function overrideNotBlocked(c: Context<AppEnv>) {
+  const r = c.var.deps.limiter.blocked(overrideOrgKey(c.var.orgId), overrideOrgMax(c));
+  if (r.blocked) {
+    c.header('Retry-After', String(r.retryAfter));
+    throw new HttpError(
+      429,
+      'rate_limited',
+      'Demasiados intentos con el PIN del dueño en este negocio. Espera unos minutos y vuelve a intentarlo.',
+    );
+  }
+}
+
+async function recordOverrideFailure(c: Context<AppEnv>, operator: Operator) {
+  c.var.deps.limiter.hit(overrideOrgKey(c.var.orgId), overrideOrgMax(c), OVERRIDE_WINDOW);
+  await recordOverridePinFailure(c.var.deps.db, c.var.orgId, {
+    orgUserId: operator.orgUserId,
+    actorType: operator.actorType === 'staff' ? 'staff' : 'owner',
+    deviceId: c.var.device.deviceId,
+  });
 }
 
 function uuidParam(c: Context<AppEnv>, name: string): string {
@@ -184,9 +213,12 @@ export const staffRoutes = new Hono<AppEnv>()
       const operator = operatorFrom(c);
       if (b.override && !operator.canOverrideLimits) {
         limit(c, 'staffOverride', 15 * 60_000, c.var.device.deviceId);
+        overrideNotBlocked(c);
         const approver = await verifyOverridePin(c.var.deps.db, c.var.orgId, b.override.pin);
-        if (!approver)
+        if (!approver) {
+          await recordOverrideFailure(c, operator);
           throw new HttpError(403, 'invalid_override_pin', 'PIN del dueño o del administrador incorrecto');
+        }
         operator.canOverrideLimits = true;
         operator.overrideApprovedBy = approver.orgUserId;
       }

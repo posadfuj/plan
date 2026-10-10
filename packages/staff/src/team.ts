@@ -319,3 +319,25 @@ export async function verifyOverridePin(
   for (const a of approvers) if (await verifyPin(a.pinHash, pin)) return { orgUserId: a.id, name: a.name };
   return null;
 }
+
+/**
+ * PIN del dueño equivocado en caja: queda en la auditoría con quién lo intentó y en qué caja
+ * (el PIN no dice de quién era, pero el dueño ve los intentos en el reporte de actividad).
+ */
+export async function recordOverridePinFailure(
+  db: Db,
+  orgId: string,
+  attempt: { orgUserId: string; actorType: 'staff' | 'owner'; deviceId: string },
+): Promise<void> {
+  await withTenantTx(db, orgId, (tx) =>
+    tx.insert(auditLogs).values({
+      organizationId: orgId,
+      actorType: attempt.actorType,
+      actorId: attempt.orgUserId,
+      action: 'override.pin_failed',
+      entityType: 'worker_device',
+      entityId: attempt.deviceId,
+      after: { deviceId: attempt.deviceId },
+    }),
+  );
+}

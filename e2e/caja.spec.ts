@@ -9,14 +9,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-  expect,
-  test,
-  type Browser,
-  type BrowserContext,
-  type Page,
-  type PlaywrightWorkerArgs,
-} from '@playwright/test';
+import type { Browser, BrowserContext, Page, PlaywrightWorkerArgs } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { SEED } from '@aiment/db/seed-data';
 import { decodeQr, pairingCodeFromDb, panelLogin, qrVideo, randomPhone } from './helpers';
 

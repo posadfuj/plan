@@ -13,6 +13,7 @@ import { ZodError } from 'zod';
 import type { AppDeps, AppEnv, ResolvedDeps } from './context';
 import { RateLimiter } from './rate-limit';
 import { HttpError } from './errors';
+import { redactPath, safeError } from '@aiment/config';
 import { adminRoutes } from './routes/admin';
 import { linkRoutes } from './routes/links';
 import { loyaltyRoutes } from './routes/loyalty';
@@ -88,7 +89,7 @@ export function createApp(input: AppDeps) {
         { error: { code: 'invalid_request', message: 'Datos inválidos', issues: err.issues } },
         400,
       );
-    console.error(`[api] ${c.get('requestId')} ${c.req.method} ${c.req.path}`, err);
+    console.error(`[api] ${c.get('requestId')} ${c.req.method} ${redactPath(c.req.path)} ${safeError(err)}`);
     return c.json({ error: { code: 'internal_error', message: 'Error interno' } }, 500);
   });
 

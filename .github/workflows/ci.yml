@@ -35,6 +35,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Dependencias sin vulnerabilidades conocidas (moderadas o más)
+        run: pnpm audit --audit-level moderate
       - name: Formato
         run: pnpm format:check
       - name: Lint

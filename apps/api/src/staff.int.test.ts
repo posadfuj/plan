@@ -743,6 +743,66 @@ describe('aislamiento: un dispositivo solo opera su propio negocio', () => {
     expect([r.status, r.json.error.code]).toEqual([401, 'invalid_pin']);
   });
 
+  it('PIN del dueño equivocado: tope por negocio sumando todas sus cajas y cada fallo auditado (deuda #16)', async () => {
+    // App con su propio contador: 3 fallos por negocio cada 15 min (el de cada caja queda holgado).
+    const strict = createApp({
+      db: handle.db,
+      verifier: createSupabaseVerifier({ supabaseUrl: SUPABASE_URL, jwtSecret: JWT_SECRET }),
+      config: {
+        requireSuperadminMfa: false,
+        publicBaseUrl: 'http://localhost:5173',
+        trustProxy: true,
+        rateLimits: { staffOverride: 100, staffOverrideOrg: 3 },
+      },
+    });
+    const one = (await pairDevice(A, 'Caja 1')).device;
+    const two = (await pairDevice(A, 'Caja 2')).device;
+    await login(one, A.staff[0].orgUserId, PIN.staff);
+    await login(two, A.staff[1].orgUserId, PIN.staff);
+    const c = await newCustomer();
+    await one.req('POST', `/v1/staff/memberships/${c.membershipId}/earn`, { body: {} }); // queda en cooldown
+    const tryPin = (d: Browser, pin: string) =>
+      d.req('POST', `/v1/staff/memberships/${c.membershipId}/earn`, {
+        body: { override: { reason: 'Vino dos veces hoy', pin } },
+        target: strict,
+      });
+    const since = new Date();
+    expect((await tryPin(one, '000000')).status).toBe(403);
+    expect((await tryPin(one, '000001')).status).toBe(403);
+    expect((await tryPin(two, '000002')).status).toBe(403); // 3.er fallo, desde OTRA caja
+    const blocked = await tryPin(two, PIN.owner); // ni con el PIN correcto, ni en ninguna caja
+    expect([blocked.status, blocked.json.error.code]).toEqual([429, 'rate_limited']);
+    expect((await tryPin(one, PIN.owner)).status).toBe(429);
+    expect(Number(blocked.headers.get('retry-after'))).toBeGreaterThan(0);
+
+    const fails = await withSystemTx(handle.db, (tx) =>
+      tx
+        .select({ actorId: schema.auditLogs.actorId, actorType: schema.auditLogs.actorType })
+        .from(schema.auditLogs)
+        .where(
+          and(
+            eq(schema.auditLogs.organizationId, A.id),
+            eq(schema.auditLogs.action, 'override.pin_failed'),
+            sql`${schema.auditLogs.createdAt} >= ${since.toISOString()}::timestamptz`,
+          ),
+        ),
+    );
+    expect(fails).toHaveLength(3);
+    expect(fails.filter((f) => f.actorId === A.staff[0].orgUserId)).toHaveLength(2);
+    expect(fails.filter((f) => f.actorId === A.staff[1].orgUserId)).toHaveLength(1);
+    expect(fails.every((f) => f.actorType === 'staff')).toBe(true);
+    // Otro negocio no comparte el contador.
+    const other = (await pairDevice(C, 'Caja vet')).device;
+    await login(other, C.staff[0].orgUserId, PIN.staff);
+    const cv = await newCustomer(C.linkSlug);
+    await other.req('POST', `/v1/staff/memberships/${cv.membershipId}/earn`, { body: {} });
+    const vet = await other.req('POST', `/v1/staff/memberships/${cv.membershipId}/earn`, {
+      body: { override: { reason: 'Vino dos veces hoy', pin: PIN.owner } },
+      target: strict,
+    });
+    expect(vet.status).toBe(201);
+  });
+
   it('límite de búsquedas por dispositivo (30 por minuto)', async () => {
     const { device } = await pairDevice(A);
     await login(device, A.staff[0].orgUserId, PIN.staff);

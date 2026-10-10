@@ -2,9 +2,19 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { headersFile, SECURITY_HEADERS } from './security-headers';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+/** Escribe `dist/_headers` con la misma política que usa `vite preview`. */
+const securityHeadersFile = (): Plugin => ({
+  name: 'aiment-security-headers',
+  apply: 'build',
+  generateBundle() {
+    this.emitFile({ type: 'asset', fileName: '_headers', source: headersFile() });
+  },
+});
 
 /**
  * En local la PWA y la API se sirven por el MISMO origen (este servidor de Vite hace de proxy).
@@ -23,11 +33,11 @@ export default defineConfig(({ mode }) => {
     '/auth/v1': env.SUPABASE_URL || 'http://127.0.0.1:54321',
   };
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), securityHeadersFile()],
     define: {
       'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(env.SUPABASE_PUBLISHABLE_KEY ?? ''),
     },
     server: { port: 5173, host: true, allowedHosts: true, proxy },
-    preview: { port: 4173, host: true, allowedHosts: true, proxy },
+    preview: { port: 4173, host: true, allowedHosts: true, proxy, headers: SECURITY_HEADERS },
   };
 });

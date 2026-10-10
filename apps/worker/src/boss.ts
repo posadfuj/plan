@@ -1,4 +1,5 @@
 import { PgBoss } from 'pg-boss';
+import { safeError } from '@aiment/config';
 import type { Db } from '@aiment/db';
 import type { WalletProvider } from '@aiment/wallet';
 import { dispatchOutboxBatch, WALLET_QUEUES, type WalletSyncJob } from './outbox';
@@ -28,7 +29,7 @@ export async function startWorker(opts: WorkerOptions) {
     migrate: false,
     createSchema: false,
   });
-  boss.on('error', (err) => log(`[pg-boss] ${err.message}`));
+  boss.on('error', (err) => log(`[pg-boss] ${safeError(err)}`));
   await boss.start();
 
   const retry = opts.retry ?? { limit: 8, delaySeconds: 5, backoff: true };
@@ -76,7 +77,7 @@ export async function startWorker(opts: WorkerOptions) {
       const n = await dispatchOutboxBatch(opts.db, enqueue);
       if (n) log(`[outbox] ${n} evento(s) despachado(s)`);
     } catch (err) {
-      log(`[outbox] error: ${err instanceof Error ? err.message : String(err)}`);
+      log(`[outbox] error: ${safeError(err)}`);
     } finally {
       busy = false;
     }

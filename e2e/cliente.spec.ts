@@ -3,7 +3,8 @@
  * QR/NFC del local → landing → registro → membresía → tarjeta web → QR individual,
  * más duplicados y recuperación de la tarjeta.
  */
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { SEED } from '@aiment/db/seed-data';
 import { decodeQr, panelLogin, randomEmail, randomPhone, waitForEmail } from './helpers';
 
