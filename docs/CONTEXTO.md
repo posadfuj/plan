@@ -2,11 +2,11 @@
 
 **Aiment Wallet**: plataforma de fidelización multi-negocio (puntos y sellos, tarjeta web, QR/NFC y, más adelante, Apple/Google Wallet). Fundador: Aiment Agency / Aiment Card (Perú).
 
-## Estado al 28/09/2026
+## Estado al 09/10/2026
 
 - Rama de trabajo: `claude/loyalty-platform-technical-review-0qpg4x`.
-- **Semanas 1–5 aprobadas.** Después de aprobar la 5 se agregó editar nombre/celular del cliente desde la ficha (#23). Próxima: semana 6 (reportes, automatizaciones y hardening).
-- **Antes de la semana 6:** prueba en celulares físicos (iPhone, Android medio y bajo: cámara, QR, NFC, autorización de caja, recuperación, panel y sin conexión). Si aparece una diferencia importante con la emulación, se corrige primero (pedido del fundador).
+- **Semanas 1–5 cerradas oficialmente (09/10/2026)** tras la prueba en celulares físicos (iPhone 14 y Samsung A22 con Chrome 154): sin diferencias importantes frente a la emulación. Resultado en `docs/prueba-celulares.md`. Después de aprobar la 5 se agregó editar nombre/celular del cliente desde la ficha (#23).
+- **Semana 6 autorizada:** reportes, CSV, automatizaciones, hardening y vencimientos programados. Alcance congelado.
 - Pruebas: 236 tests + 22 E2E (incluye caja sin internet y respuesta perdida sin duplicar) (Android e iPhone emulados; los del panel también corren en CI). CI verde (run #22).
 
 ## Decisiones cerradas (no reabrir)
@@ -35,7 +35,7 @@
 | `docs/backlog-mvp.md`                                   | Plan por semanas (1–5 aprobadas)                              |
 | `docs/semana-1-reporte.md` … `docs/semana-5-reporte.md` | Reportes y **deuda técnica**                                  |
 | `docs/decisiones/`                                      | ADR 0001 auth · 0002 token · 0003 límites · 0004 caja online  |
-| `docs/prueba-celulares.md`                              | Checklist para celulares reales (pendiente del fundador)      |
+| `docs/prueba-celulares.md`                              | Checklist y resultado de la prueba en celulares reales        |
 | `docs/guia-google-wallet-demo.md`                       | Prueba de Google Wallet (pendiente de la cuenta del fundador) |
 | `README.md`                                             | Instalación y comandos                                        |
 
@@ -45,8 +45,9 @@
 - **Decididos por el fundador:** #12 shadcn/ui cerrada (no migrar si no hay mejora visible); #22 invitar admins → fase posterior, fuera del MVP; #23 editar cliente → hecha.
 - **Semana 7:** sincronizar los cambios de regla con los pases.
 - **Fundador:**
-  - prueba en celulares reales: cliente, caja **y panel** (`pnpm local:tunnel` + `docs/prueba-celulares.md`);
+  - si se consigue, repetir en un Android de gama baja real (C6, C13, P8): no se pudo en la prueba física;
   - prueba de Google Wallet en modo demo;
   - confirmar la dedicación de la desarrolladora;
   - revisión legal (casilla de consentimiento, textos).
 - **Entorno de la nube:** el túnel HTTPS está bloqueado (403 a `trycloudflare.com`; se destraba permitiendo ese dominio en el acceso de red del entorno). Docker y Supabase local sí funcionan (si Docker no arranca: borrar `/var/run/docker.pid` y ejecutar `dockerd`). Para E2E aquí: `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (lo hace solo `pnpm demo`). Si el puerto 8787 está ocupado, puede ser una API vieja de otra sesión.
+- **Mac del fundador:** Node 22 de Homebrew (`export PATH=/opt/homebrew/opt/node@22/bin:$PATH`; su Node global es 26). `pnpm e2e` necesita `pnpm dev` corriendo. Si Docker baja muy lento las imágenes de `public.ecr.aws`, bajarlas de Docker Hub (`supabase/…`) y etiquetarlas con el nombre de ECR. En la base local la Barbería quedó en plan Multi con una segunda sucursal (`pnpm db:reset` la devuelve al seed).

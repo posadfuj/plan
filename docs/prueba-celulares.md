@@ -2,6 +2,28 @@
 
 Las pruebas automáticas emulan un Android (Pixel 7) y un iPhone (14) en Chromium. Esta lista es para confirmar lo mismo en **teléfonos reales**, con su cámara, su lector NFC y su navegador (Safari en iPhone, Chrome en Android).
 
+## Resultado (29/09 y 09/10/2026) — aprobada por el fundador
+
+Hecha por el fundador en su Mac con `pnpm local:tunnel`. Cada paso que escribe en la base (registros, cajas, sumas, anulaciones, auditoría, aperturas por NFC) se comprobó **en la base**, no solo en pantalla.
+
+| Teléfono                        | Navegador             | Papel                 |
+| ------------------------------- | --------------------- | --------------------- |
+| iPhone 14                       | Safari                | Cliente y caja        |
+| Samsung Galaxy A22 (medio-bajo) | Chrome 154.0.8037.126 | Caja, panel y cliente |
+| Android de gama baja            | —                     | **No se consiguió**   |
+
+| Área                 | Resultado                                                                                                                                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cliente (1–12)       | ✅ Registro por QR, tarjeta, tarjeta existente, recuperación por correo y en el local                                                                                                               |
+| NFC (9)              | ✅ Tag sin bloquear; 4 aperturas registradas como canal `nfc`; abre rápido                                                                                                                          |
+| Caja A22 (C1–C15)    | ✅ Autorización desde el panel, PIN, cámara, suma, suma con PIN del dueño, anulación; **menos de 5 s** por operación. Revocar: los 2 primeros toques no llegaron al servidor; al repetirlo funcionó |
+| Caja iPhone (C5–C9)  | ✅ Cámara de Safari, suma y anulación (una de cada una en la base)                                                                                                                                  |
+| Sin conexión (O1–O3) | ✅ Modo avión: aviso y **ninguna** suma; al volver, una sola suma; reintento sin duplicar                                                                                                           |
+| Panel (P2–P13)       | ✅ Logo, marca, regla, equipo, bloqueo/desbloqueo, editar cliente y celular duplicado rechazado                                                                                                     |
+| **P8** en el A22     | ✅ "Generar QR" tocado apenas abre Cajas: **sin "Error interno"**. Con dos sucursales, la caja queda en la elegida y un trabajador de otra sucursal no aparece en ella                              |
+
+Diferencias importantes frente a la emulación: **ninguna**. No probado: Android de gama baja real, logo con la cámara (P2), bloqueo por 5 PIN errados (C4), tiempo de la caja en el iPhone. Para P8 con dos sucursales, la Barbería se pasó al plan Multi desde `/admin` (el plan Pro admite una sola sucursal).
+
 ## Preparación (en tu computadora)
 
 ```bash

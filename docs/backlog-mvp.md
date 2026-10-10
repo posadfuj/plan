@@ -69,7 +69,7 @@ Estado: **cerrada**. Detalle en [`semana-2-reporte.md`](./semana-2-reporte.md).
 
 ## Semana 3: Registro, dos tokens, tarjeta web y QR/NFC ✔
 
-Estado: **cerrada** (salvo la prueba en celulares reales). Detalle en [`semana-3-reporte.md`](./semana-3-reporte.md).
+Estado: **cerrada**; prueba en celulares reales aprobada el 09/10/2026. Detalle en [`semana-3-reporte.md`](./semana-3-reporte.md).
 
 - [x] `short_links` por sucursal y `GET /go/:slug` en la API, con registro en `channel_visits` (`c=q|n`, hash diario sin IP).
 - [x] `/join/{código}`: marca, formulario (nombre + celular; correo y cumpleaños opcionales), consentimientos versionados y límite por IP.
@@ -79,13 +79,13 @@ Estado: **cerrada** (salvo la prueba en celulares reales). Detalle en [`semana-3
 - [x] Panel mínimo: QR de la sucursal (PNG/SVG), URL para NFC y QR de recuperación.
 - [x] E2E en Android e iPhone emulados + job de E2E en CI.
 - [x] `pnpm local:tunnel` + checklist `prueba-celulares.md`.
-- [ ] **Prueba en celulares reales:** pendiente del fundador (el entorno de la sesión bloquea el túnel).
+- [x] **Prueba en celulares reales:** aprobada el 09/10/2026 (iPhone 14 y Samsung A22). Ver [`prueba-celulares.md`](./prueba-celulares.md).
 
 **Demostrable:** `pnpm demo` → 8/8 en celulares emulados.
 
 ## Semana 4: Modo trabajador ✔
 
-Estado: **aprobada** (salvo la prueba en celulares reales). Detalle en [`semana-4-reporte.md`](./semana-4-reporte.md).
+Estado: **cerrada**; prueba en celulares reales aprobada el 09/10/2026. Detalle en [`semana-4-reporte.md`](./semana-4-reporte.md).
 
 - [x] Autorización de dispositivo (QR de 10 min → cookie) y revocación.
 - [x] Trabajadores con PIN; login en caja (nombre + PIN), bloqueo por intentos, sesión de 12 h y "Cerrar turno".
@@ -101,7 +101,7 @@ Estado: **aprobada** (salvo la prueba en celulares reales). Detalle en [`semana-
 
 ## Semana 5: Panel del dueño y superadmin ✔
 
-Estado: **aprobada**. Agregado tras la aprobación: editar nombre y celular del cliente (#23). Invitar admins (#22) pasa a una fase posterior. Pendiente antes de la semana 6: prueba en celulares físicos. Detalle en [`semana-5-reporte.md`](./semana-5-reporte.md).
+Estado: **cerrada oficialmente el 09/10/2026** tras la prueba en celulares físicos. Agregado tras la aprobación: editar nombre y celular del cliente (#23). Invitar admins (#22) pasa a una fase posterior. Detalle en [`semana-5-reporte.md`](./semana-5-reporte.md).
 
 - [x] Marca: logo (almacenamiento local con interfaz S3; R2 en la semana 9), colores con chequeo de contraste, textos, condiciones y contacto.
 - [x] Programa: plantillas por rubro como presets editables; regla, meta, premios, bienvenida, límites y expiración (desactivada).
@@ -111,7 +111,7 @@ Estado: **aprobada**. Agregado tras la aprobación: editar nombre y celular del 
 - [x] Sucursales: alta, edición, QR/NFC propio, desactivación y reactivación.
 - [x] Superadmin: crear negocio (+ sucursal + invitación al dueño), estados `draft → live → suspended`, plan, uso y auditoría.
 - [x] Caja sin modo offline documentada ([ADR 0004](./decisiones/0004-caja-requiere-conexion.md)) y avisada en la interfaz.
-- [ ] **Prueba en celulares reales** (cliente, caja y panel): pendiente del fundador (el entorno de la sesión bloquea el túnel).
+- [x] **Prueba en celulares reales** (cliente, caja, panel, NFC y sin conexión): aprobada el 09/10/2026, sin diferencias importantes. Android de gama baja real no disponible. Ver [`prueba-celulares.md`](./prueba-celulares.md).
 
 **Demostrable:** `pnpm demo` → 20/20: un negocio ficticio nuevo, de cero a su primera tarjeta y su primera visita en caja, **sin tocar código** (13–15 s automatizado; falta medirlo con una persona).
 

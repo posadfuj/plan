@@ -2,13 +2,13 @@
 
 Plataforma de fidelización digital multi-negocio: puntos y sellos, tarjeta web, QR/NFC y Apple/Google Wallet.
 
-> Estado: **semana 5 del MVP (local-first)**. Reportes: [semana 1](docs/semana-1-reporte.md) · [semana 2](docs/semana-2-reporte.md) · [semana 3](docs/semana-3-reporte.md) · [semana 4](docs/semana-4-reporte.md) · [semana 5](docs/semana-5-reporte.md).
+> Estado: **semanas 1–5 cerradas; semana 6 del MVP (local-first)**. Reportes: [semana 1](docs/semana-1-reporte.md) · [semana 2](docs/semana-2-reporte.md) · [semana 3](docs/semana-3-reporte.md) · [semana 4](docs/semana-4-reporte.md) · [semana 5](docs/semana-5-reporte.md).
 > Documentos: [arquitectura v1.1](docs/arquitectura-v1.1.md) · [backlog](docs/backlog-mvp.md) · [decisiones](docs/decisiones/).
 
 ## Requisitos
 
 - Node.js **22.12+** (`.nvmrc`)
-- Para `pnpm demo` / `pnpm e2e`: `pnpm exec playwright install chromium` (una vez)
+- Para `pnpm demo` / `pnpm e2e`: `pnpm exec playwright install chromium` (una vez); `pnpm e2e` además necesita `pnpm dev` corriendo en otra terminal (`pnpm demo` levanta todo solo)
 - pnpm **10** (`corepack enable`)
 - Docker (para Supabase local)
 

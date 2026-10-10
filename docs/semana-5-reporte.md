@@ -77,6 +77,8 @@ Capturas: `e2e/artifacts/*-panel-*.png`. Te envío algunas con este reporte.
 
 ## 3. Prueba en celulares físicos
 
+> **Actualización 09/10/2026:** el fundador la hizo en su Mac con el túnel (iPhone 14 y Samsung A22 con Chrome 154) y quedó **aprobada**, sin diferencias importantes frente a la emulación. P8 en el A22 sin "Error interno". Resultado en [`prueba-celulares.md`](./prueba-celulares.md). Lo que sigue es el texto original de esta sección.
+
 **No se ejecutó.** Esta sesión corre en un contenedor en la nube cuya política de red **bloquea el túnel HTTPS** (`trycloudflare.com` responde 403), así que ningún teléfono puede llegar a la app que corre aquí. No tengo resultados de celulares reales y no los invento.
 
 Para destrabarlo hay dos caminos:
@@ -151,7 +153,7 @@ Lo que la emulación **no** puede confirmar y ya se preparó en el código:
 | 3   | Job de expiración programado                                                    | 6                                |
 | 4   | Sincronización de cambios de regla y marca con los pases (`program.updated`)    | 7                                |
 | 5   | Prueba real de Google Wallet en Android                                         | Cuando tengas la cuenta          |
-| 6   | **Prueba en celulares reales** (cliente, caja y ahora panel)                    | Tú, antes de la semana 6         |
+| 6   | **Prueba en celulares reales** (cliente, caja y ahora panel)                    | **Cerrada** el 09/10/2026        |
 | 7   | Límite de intentos en memoria (una sola instancia)                              | 9                                |
 | 8   | Turnstile (anti-bots) en el registro                                            | 9                                |
 | 10  | Un solo checkbox para términos **y** privacidad                                 | Pendiente de tu validación legal |
