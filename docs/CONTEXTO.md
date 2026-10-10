@@ -7,7 +7,7 @@
 - Rama de trabajo: `claude/loyalty-platform-technical-review-0qpg4x`.
 - **Semanas 1–5 cerradas oficialmente (09/10/2026)** tras la prueba en celulares físicos (iPhone 14 y Samsung A22 con Chrome 154): sin diferencias importantes frente a la emulación. Resultado en `docs/prueba-celulares.md`. Después de aprobar la 5 se agregó editar nombre/celular del cliente desde la ficha (#23).
 - **Semana 6 terminada (pendiente de aprobación del fundador):** reportes, CSV, automatizaciones, PDF de mostrador, hardening, vencimientos programados, runbook y E2E del flujo crítico. Reporte: `docs/semana-6-reporte.md`. Falta el túnel con nombre (requiere el dominio). Alcance congelado.
-- Pruebas: 287 tests + 30 E2E (Android e iPhone emulados, con CSP estricta en CI). Último CI verde: run #23 (antes de la semana 6); los commits de la semana 6 esperan el push.
+- Pruebas: 287 tests + 30 E2E (Android e iPhone emulados, con CSP estricta en CI). Último CI verde: run #26 (semana 6 completa, con el arreglo de CSP para el lector de QR).
 
 ## Decisiones cerradas (no reabrir)
 

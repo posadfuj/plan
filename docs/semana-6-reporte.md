@@ -122,7 +122,7 @@ A5 vertical (también se imprime en A4), una página por sucursal: franja con el
 
 **Tiempos de caja** medidos por el E2E (CPU 4× más lenta y red móvil simulada; meta < 5 s): escanear hasta la ficha 0,96 s · sumar 0,28–0,39 s · excepción con PIN 0,44 s · anular 0,17–0,25 s · buscar por código 0,32–0,39 s. Configuración de cero a la primera tarjeta: 11–14 s automatizado.
 
-**CI:** pendiente del push (los cambios están en commits locales; ver el final).
+**CI:** verde en el [run #26](https://github.com/posadfuj/plan/actions/runs/38028366147) (lint, tipos, tests, E2E y escaneo de secretos). El run #25 había fallado en 6 E2E: la CSP bloqueaba el WebAssembly del lector de QR (iPhone/Safari y el Chromium de CI no traen `BarcodeDetector`). Se corrigió con `'wasm-unsafe-eval'` (solo habilita WebAssembly) y el proyecto E2E "iphone" ahora usa el lector zxing-wasm, así el error también aparece en la Mac.
 
 ## 4. Qué queda listo para Google Wallet y Apple Wallet (semanas 7–8)
 
