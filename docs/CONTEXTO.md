@@ -6,8 +6,8 @@
 
 - Rama de trabajo: `claude/loyalty-platform-technical-review-0qpg4x`.
 - **Semanas 1–5 cerradas oficialmente (09/10/2026)** tras la prueba en celulares físicos (iPhone 14 y Samsung A22 con Chrome 154): sin diferencias importantes frente a la emulación. Resultado en `docs/prueba-celulares.md`. Después de aprobar la 5 se agregó editar nombre/celular del cliente desde la ficha (#23).
-- **Semana 6 autorizada:** reportes, CSV, automatizaciones, hardening y vencimientos programados. Alcance congelado.
-- Pruebas: 236 tests + 22 E2E (incluye caja sin internet y respuesta perdida sin duplicar) (Android e iPhone emulados; los del panel también corren en CI). CI verde (run #22).
+- **Semana 6 terminada (pendiente de aprobación del fundador):** reportes, CSV, automatizaciones, PDF de mostrador, hardening, vencimientos programados, runbook y E2E del flujo crítico. Reporte: `docs/semana-6-reporte.md`. Falta el túnel con nombre (requiere el dominio). Alcance congelado.
+- Pruebas: 287 tests + 30 E2E (Android e iPhone emulados, con CSP estricta en CI). Último CI verde: run #23 (antes de la semana 6); los commits de la semana 6 esperan el push.
 
 ## Decisiones cerradas (no reabrir)
 
@@ -32,8 +32,9 @@
 | Documento                                               | Contenido                                                     |
 | ------------------------------------------------------- | ------------------------------------------------------------- |
 | `docs/arquitectura-v1.1.md`                             | Arquitectura vigente                                          |
-| `docs/backlog-mvp.md`                                   | Plan por semanas (1–5 aprobadas)                              |
-| `docs/semana-1-reporte.md` … `docs/semana-5-reporte.md` | Reportes y **deuda técnica**                                  |
+| `docs/backlog-mvp.md`                                   | Plan por semanas (1–5 cerradas, 6 terminada)                  |
+| `docs/semana-1-reporte.md` … `docs/semana-6-reporte.md` | Reportes y **deuda técnica**                                  |
+| `docs/runbook.md`                                       | Operación: variables, migraciones, respaldo y restauración    |
 | `docs/decisiones/`                                      | ADR 0001 auth · 0002 token · 0003 límites · 0004 caja online  |
 | `docs/prueba-celulares.md`                              | Checklist y resultado de la prueba en celulares reales        |
 | `docs/guia-google-wallet-demo.md`                       | Prueba de Google Wallet (pendiente de la cuenta del fundador) |
@@ -41,11 +42,12 @@
 
 ## Pendientes conocidos
 
-- **Semana 6:** reportes, CSV, automatizaciones, hardening y job de expiración programado.
+- **Semana 7:** Google Wallet. Requiere el dominio (túnel con nombre) y la cuenta Google Issuer del fundador.
 - **Decididos por el fundador:** #12 shadcn/ui cerrada (no migrar si no hay mejora visible); #22 invitar admins → fase posterior, fuera del MVP; #23 editar cliente → hecha.
-- **Semana 7:** sincronizar los cambios de regla con los pases.
+- **Semana 7 también:** sincronizar los cambios de regla con los pases (deuda #4) y mostrar en el pase el mensaje automático (`automation.ran`).
 - **Fundador:**
   - si se consigue, repetir en un Android de gama baja real (C6, C13, P8): no se pudo en la prueba física;
+  - **comprar el dominio** (bloquea el túnel con nombre y Wallet);
   - prueba de Google Wallet en modo demo;
   - confirmar la dedicación de la desarrolladora;
   - revisión legal (casilla de consentimiento, textos).

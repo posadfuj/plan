@@ -2,7 +2,7 @@
 
 Plataforma de fidelización digital multi-negocio: puntos y sellos, tarjeta web, QR/NFC y Apple/Google Wallet.
 
-> Estado: **semanas 1–5 cerradas; semana 6 del MVP (local-first)**. Reportes: [semana 1](docs/semana-1-reporte.md) · [semana 2](docs/semana-2-reporte.md) · [semana 3](docs/semana-3-reporte.md) · [semana 4](docs/semana-4-reporte.md) · [semana 5](docs/semana-5-reporte.md).
+> Estado: **semanas 1–5 cerradas; semana 6 terminada (local-first)**. Reportes: [semana 1](docs/semana-1-reporte.md) · [semana 2](docs/semana-2-reporte.md) · [semana 3](docs/semana-3-reporte.md) · [semana 4](docs/semana-4-reporte.md) · [semana 5](docs/semana-5-reporte.md) · [semana 6](docs/semana-6-reporte.md). Operación: [runbook](docs/runbook.md).
 > Documentos: [arquitectura v1.1](docs/arquitectura-v1.1.md) · [backlog](docs/backlog-mvp.md) · [decisiones](docs/decisiones/).
 
 ## Requisitos
@@ -17,8 +17,8 @@ Plataforma de fidelización digital multi-negocio: puntos y sellos, tarjeta web,
 ```bash
 pnpm install
 pnpm local:setup   # levanta Supabase local, genera .env, migra y carga datos de prueba
-pnpm demo          # semana 5: panel del dueño de cero a la primera tarjeta + cliente + caja (20/20)
-                   # anteriores: pnpm demo:semana-4 · demo:semana-3 · demo:semana-2 · demo:semana-1
+pnpm demo          # semana 6: reportes, CSV, PDF, mensajes automáticos y flujo crítico (30/30)
+                   # anteriores: pnpm demo:semana-5 · demo:semana-4 · demo:semana-3 · demo:semana-2 · demo:semana-1
 ```
 
 `pnpm local:setup` equivale a:
@@ -28,6 +28,12 @@ pnpm local:up      # Supabase CLI en Docker: Postgres 17 + Auth + Mailpit
 pnpm local:env     # genera .env desde `supabase status` (no se sube al repositorio)
 pnpm db:reset      # borra la base local, aplica migraciones, crea el rol de la API y carga el seed
 ```
+
+**Si algo se traba en la instalación:**
+
+- **Node:** el proyecto usa Node 22 (`.nvmrc`). Con otra versión global, instala la 22 aparte (p. ej. `brew install node@22`) y ponla primera en el `PATH` antes de usar `pnpm`.
+- **Docker no termina de descargar las imágenes de Supabase:** reinicia Docker Desktop (`docker desktop restart`). Si `public.ecr.aws` va muy lento, baja la misma imagen de Docker Hub y etiquétala con el nombre que espera Supabase: `docker pull supabase/postgres:<versión>` y `docker tag supabase/postgres:<versión> public.ecr.aws/supabase/postgres:<versión>`.
+- **`pnpm e2e` falla con `ERR_CONNECTION_REFUSED`:** necesita `pnpm dev` corriendo en otra terminal (o usa `pnpm demo`, que levanta todo).
 
 ## Uso diario
 

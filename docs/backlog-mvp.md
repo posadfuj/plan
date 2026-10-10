@@ -115,18 +115,21 @@ Estado: **cerrada oficialmente el 09/10/2026** tras la prueba en celulares físi
 
 **Demostrable:** `pnpm demo` → 20/20: un negocio ficticio nuevo, de cero a su primera tarjeta y su primera visita en caja, **sin tocar código** (13–15 s automatizado; falta medirlo con una persona).
 
-## Semana 6: Reportes, automatizaciones y hardening
+## Semana 6: Reportes, automatizaciones y hardening ✔
 
-- [ ] Reportes: altas por canal (QR/NFC), visitas, clientes con 2+ visitas, premios ganados y canjeados, y **actividad por trabajador** (anulaciones, overrides).
-- [ ] Exportación CSV (solo dueño/admin, auditada).
-- [ ] Automatizaciones `welcome`, `goal_reached` y `almost_there` con `automation_runs`, activables o desactivables.
-- [ ] PDF de mostrador (marca + QR + "Powered by Aiment Wallet").
-- [ ] Hardening: CSP, revisión de rate limits, logs sin datos personales y `pnpm audit`.
-- [ ] E2E con Playwright del flujo crítico, repetible con `db:reset`.
-- [ ] `docs/runbook.md`: variables, migraciones y backup/restauración de Postgres (`pg_dump` probado).
-- [ ] **Túnel con nombre** `dev.{dominio}` (si el dominio ya está comprado).
+Estado: **terminada, pendiente de tu aprobación** (falta el túnel con nombre: requiere el dominio). Detalle en [`semana-6-reporte.md`](./semana-6-reporte.md).
 
-**Demostrable:** el MVP local es estable y se cumplen **todos** los criterios de la sección 14 de la arquitectura.
+- [x] Reportes: altas por canal (QR/NFC), visitas, clientes con 2+ visitas, premios ganados y canjeados, y **actividad por trabajador** (anulaciones, overrides, PIN del dueño errados).
+- [x] Exportación CSV (solo dueño/admin, auditada): clientes y movimientos.
+- [x] Automatizaciones `welcome`, `goal_reached` y `almost_there` con `automation_runs`, activables o desactivables.
+- [x] PDF de mostrador (marca + QR + "Powered by Aiment Wallet").
+- [x] Hardening: CSP, revisión de rate limits (+ PIN del dueño por negocio, deuda #16), logs sin datos personales y `pnpm audit` (0 avisos, en CI).
+- [x] Vencimientos programados (deuda #3): diario a las 3:00 de cada negocio.
+- [x] E2E con Playwright del flujo crítico, repetible con `db:reset` (3 veces seguidas en verde).
+- [x] `docs/runbook.md`: variables, migraciones y backup/restauración de Postgres (`pg_dump` probado).
+- [ ] **Túnel con nombre** `dev.{dominio}`: bloqueado hasta comprar el dominio.
+
+**Demostrable:** `pnpm demo` → 30/30. Se cumplen los criterios de la sección 14 de la arquitectura (tabla en el reporte).
 
 ## Semana 7: Google Wallet (vía túnel)
 
