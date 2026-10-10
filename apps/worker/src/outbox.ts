@@ -7,6 +7,7 @@ export const WALLET_EVENTS = new Set([
   'ledger.created',
   'reward.earned',
   'reward.redeemed',
+  'reward.expired',
   'membership.updated',
   'wallet.resync_requested',
 ]);

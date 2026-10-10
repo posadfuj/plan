@@ -214,6 +214,9 @@ importers:
       '@aiment/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@aiment/ledger':
+        specifier: workspace:*
+        version: link:../../packages/ledger
       '@aiment/wallet':
         specifier: workspace:*
         version: link:../../packages/wallet
@@ -226,10 +229,6 @@ importers:
       zod:
         specifier: ^4.6.5
         version: 4.6.5
-    devDependencies:
-      '@aiment/ledger':
-        specifier: workspace:*
-        version: link:../../packages/ledger
 
   packages/business:
     dependencies:

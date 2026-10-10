@@ -5,11 +5,13 @@
 import { createDb, schema, withSystemTx, type DbHandle } from '@aiment/db';
 import { SEED, seedMembershipId } from '@aiment/db/seed-data';
 import { earn } from '@aiment/ledger';
+import { createTestOrg } from '@aiment/ledger/test-fixtures';
 import { FakeWalletProvider } from '@aiment/wallet';
 import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, inject, it } from 'vitest';
 import { startWorker } from './boss';
+import { EXPIRATION_CRON, EXPIRATION_QUEUE, runScheduledExpirations } from './expirations';
 import { dispatchOutboxBatch, WALLET_QUEUES } from './outbox';
 
 const A = SEED.orgs.barberia;
@@ -167,5 +169,74 @@ describe('Wallet simulado: una cola por proveedor', () => {
       tx.execute(sql`select count(*)::int as n from pgboss.job`),
     );
     expect(Number((jobs as { n: number }).n)).toBeGreaterThan(0);
+  });
+});
+
+describe('vencimientos programados', () => {
+  it('el worker programa el trabajo cada hora', async () => {
+    const schedules = await worker.boss.getSchedules(EXPIRATION_QUEUE);
+    expect(schedules.map((x) => x.cron)).toEqual([EXPIRATION_CRON]);
+  });
+
+  it('cada negocio vence sus premios a las 3:00 de SU zona horaria, una sola vez y avisando a Wallet', async () => {
+    const lima = await createTestOrg(handle.db, { mode: 'stamps', goal: 2 });
+    const tokyo = await createTestOrg(handle.db, { mode: 'stamps', goal: 2 });
+    await withSystemTx(handle.db, (tx) =>
+      tx
+        .update(schema.organizations)
+        .set({ timezone: 'Asia/Tokyo' })
+        .where(eq(schema.organizations.id, tokyo.orgId)),
+    );
+    const earnedAt = new Date('2026-09-01T15:00:00Z');
+    const reach = async (org: typeof lima) => {
+      const m = await org.newMembership();
+      for (let i = 0; i < 2; i++)
+        await earn(handle.db, org.orgId, {
+          membershipId: m,
+          operator: org.owner,
+          idempotencyKey: `exp_${randomUUID()}`,
+          now: new Date(earnedAt.getTime() + i * 5 * 3_600_000), // fuera del cooldown
+        });
+      return m;
+    };
+    const mLima = await reach(lima);
+    const mTokyo = await reach(tokyo);
+    const status = (m: string) =>
+      withSystemTx(handle.db, (tx) =>
+        tx
+          .select({ status: schema.earnedRewards.status })
+          .from(schema.earnedRewards)
+          .where(eq(schema.earnedRewards.membershipId, m)),
+      ).then((r) => r.map((x) => x.status));
+    expect(await status(mLima)).toEqual(['available']);
+
+    // 31 días después (vigencia 30), 08:30 UTC = 3:30 en Lima y 17:30 en Tokio.
+    const now = new Date('2026-10-10T08:30:00Z');
+    const run = await runScheduledExpirations(handle.db, now);
+    expect(run.failed).toBe(0);
+    expect(await status(mLima)).toEqual(['expired']);
+    expect(await status(mTokyo)).toEqual(['available']); // en Tokio no son las 3:00
+    const events = await withSystemTx(handle.db, (tx) =>
+      tx
+        .select({ type: schema.eventOutbox.type })
+        .from(schema.eventOutbox)
+        .where(eq(schema.eventOutbox.aggregateId, mLima)),
+    );
+    expect(events.map((e) => e.type)).toContain('reward.expired');
+
+    // Reintento de la misma hora: no vuelve a vencer ni a avisar.
+    const before = events.length;
+    await runScheduledExpirations(handle.db, now);
+    const after = await withSystemTx(handle.db, (tx) =>
+      tx
+        .select({ n: sql<number>`count(*)::int` })
+        .from(schema.eventOutbox)
+        .where(eq(schema.eventOutbox.aggregateId, mLima)),
+    );
+    expect(after[0]!.n).toBe(before);
+
+    // 18:30 UTC = 3:30 del 11/10 en Tokio: ahora le toca a Tokio.
+    await runScheduledExpirations(handle.db, new Date('2026-10-10T18:30:00Z'));
+    expect(await status(mTokyo)).toEqual(['expired']);
   });
 });

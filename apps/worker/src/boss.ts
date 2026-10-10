@@ -2,6 +2,7 @@ import { PgBoss } from 'pg-boss';
 import { safeError } from '@aiment/config';
 import type { Db } from '@aiment/db';
 import type { WalletProvider } from '@aiment/wallet';
+import { EXPIRATION_CRON, EXPIRATION_QUEUE, runScheduledExpirations } from './expirations';
 import { dispatchOutboxBatch, WALLET_QUEUES, type WalletSyncJob } from './outbox';
 import { syncMembershipPasses } from './wallet-sync';
 
@@ -16,6 +17,8 @@ export interface WorkerOptions {
   pollSeconds?: number;
   /** false = el outbox solo se despacha al llamar `tick()` (tests deterministas). */
   autoDispatch?: boolean;
+  /** false = no programa los vencimientos diarios (los tests los ejecutan a mano). */
+  scheduleExpirations?: boolean;
   log?: (msg: string) => void;
 }
 
@@ -63,6 +66,17 @@ export async function startWorker(opts: WorkerOptions) {
       },
     );
   }
+
+  // Vencimientos: cada hora; cada negocio actúa a las 3:00 de su zona horaria (ver expirations.ts).
+  await boss.createQueue(EXPIRATION_QUEUE, { retryLimit: 2, retryDelay: 300 });
+  if (opts.scheduleExpirations !== false) await boss.schedule(EXPIRATION_QUEUE, EXPIRATION_CRON);
+  await boss.work(EXPIRATION_QUEUE, async () => {
+    const r = await runScheduledExpirations(opts.db, new Date(), { log });
+    if (r.organizations)
+      log(
+        `[vencimientos] ${r.organizations} negocio(s): ${r.expiredRewards} premio(s) y ${r.expiredMemberships} saldo(s) vencidos${r.failed ? `, ${r.failed} con error` : ''}`,
+      );
+  });
 
   const debounce = opts.debounceSeconds ?? 3;
   const enqueue = (queue: string, data: WalletSyncJob, key: string) =>

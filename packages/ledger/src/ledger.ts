@@ -1135,7 +1135,12 @@ export async function expireInactive(
           sql`${earnedRewards.expiresAt} <= ${now.toISOString()}::timestamptz`,
         ),
       )
-      .returning({ id: earnedRewards.id });
+      .returning({ id: earnedRewards.id, membershipId: earnedRewards.membershipId });
+    // La tarjeta y el pase de Wallet dejan de mostrar el premio vencido.
+    for (const membershipId of new Set(expiredRewards.map((r) => r.membershipId)))
+      await emit(tx, orgId, membershipId, 'reward.expired', {
+        earnedRewardIds: expiredRewards.filter((r) => r.membershipId === membershipId).map((r) => r.id),
+      });
 
     const [program] = await tx
       .select({ months: programRuleVersions.expirationMonths })
