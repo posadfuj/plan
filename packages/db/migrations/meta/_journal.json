@@ -43,6 +43,13 @@
       "when": 1790580376923,
       "tag": "0005_caja_y_token_hash",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791603469393,
+      "tag": "0006_consent_versions_lectura",
+      "breakpoints": true
     }
   ]
 }

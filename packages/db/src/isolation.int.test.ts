@@ -68,8 +68,11 @@ describe('RLS: lectura', () => {
   it('sin contexto de tenant no se ve ninguna fila', async () => {
     const counts = await asTenant(null, async (sql) => {
       const out: Record<string, number> = {};
-      for (const t of [...tenantTables, 'organizations'])
-        out[t] = Number((await sql.unsafe(`select count(*)::int as n from app.${t}`))[0]!.n);
+      for (const t of [...tenantTables, 'organizations']) {
+        // Única excepción: los textos legales globales de la plataforma (organization_id NULL).
+        const where = t === 'consent_versions' ? ' where organization_id is not null' : '';
+        out[t] = Number((await sql.unsafe(`select count(*)::int as n from app.${t}${where}`))[0]!.n);
+      }
       return out;
     });
     expect(Object.values(counts).every((n) => n === 0)).toBe(true);
@@ -114,6 +117,32 @@ describe('RLS: lectura', () => {
     expect(inA).toHaveLength(1);
     expect(inC).toHaveLength(1);
     expect(inA[0]!.id).not.toBe(inC[0]!.id);
+  });
+});
+
+describe('RLS: textos legales globales', () => {
+  it('un negocio lee los términos, la privacidad y las promociones de la plataforma (para el panel)', async () => {
+    const kinds = await asTenant(
+      B.id,
+      (sql) => sql`select kind from app.consent_versions where organization_id is null order by kind`,
+    );
+    expect(kinds.map((k) => String(k.kind)).sort()).toEqual(['marketing', 'privacy', 'terms']);
+  });
+
+  it('pero no puede crearlos, cambiarlos ni borrarlos', async () => {
+    await expect(
+      asTenant(
+        B.id,
+        (sql) => sql`insert into app.consent_versions (kind, version, body_md) values ('terms', 99, 'Falso')`,
+      ),
+    ).rejects.toThrow(/row-level security/);
+    const result = await asTenant(B.id, async (sql) => {
+      const upd =
+        await sql`update app.consent_versions set body_md = 'Cambiado' where organization_id is null`;
+      const del = await sql`delete from app.consent_versions where organization_id is null`;
+      return { upd: upd.count, del: del.count };
+    });
+    expect(result).toEqual({ upd: 0, del: 0 });
   });
 });
 
