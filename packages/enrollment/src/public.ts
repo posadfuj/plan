@@ -8,7 +8,8 @@
  *  - member_scan_token → contenido del QR que escanea la caja (/s/...). Por sí solo no muestra datos.
  */
 import { createHash } from 'node:crypto';
-import { isCardMessageCurrent, normalizePhone, publicBranding, type AutomationKey } from '@aiment/core';
+import { normalizePhone, publicBranding } from '@aiment/core';
+import { loadCardMessage } from '@aiment/wallet';
 import { schema, withSystemTx, withTenantTx, type Db, type Tx } from '@aiment/db';
 import type { Mailer } from '@aiment/mail';
 import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
@@ -32,8 +33,6 @@ const {
   earnedRewards,
   ledgerEntries,
   eventOutbox,
-  automations,
-  automationRuns,
 } = schema;
 
 export interface PublicDeps {
@@ -510,47 +509,15 @@ export async function getCard(db: Db, webCardToken: string, opts: { googleWallet
       ];
     }
 
-    // Último mensaje automático (semana 6), solo si sigue vigente y la automatización está activa.
-    let message: { key: AutomationKey; text: string } | null = null;
-    if (row.status === 'active') {
-      const [last] = await tx
-        .select({ result: automationRuns.result, createdAt: automationRuns.createdAt })
-        .from(automationRuns)
-        .innerJoin(automations, eq(automations.id, automationRuns.automationId))
-        .where(
-          and(
-            eq(automationRuns.membershipId, row.membershipId),
-            eq(automationRuns.status, 'done'),
-            eq(automations.enabled, true),
-          ),
-        )
-        // Una misma operación puede dejar varios (1.ª visita que completa la meta): gana el más importante.
-        .orderBy(
-          desc(automationRuns.createdAt),
-          sql`case ${automationRuns.result}->>'key' when 'goal_reached' then 0 when 'almost_there' then 1 else 2 end`,
-        )
-        .limit(1);
-      const r = last?.result as
-        ({ key: AutomationKey; message: string } & Record<string, unknown>) | undefined;
-      if (
-        r &&
-        isCardMessageCurrent(
-          { key: r.key, message: r.message, data: r, createdAt: last!.createdAt },
-          {
-            mode: row.mode,
-            balance: row.balance,
-            goal: row.goal,
-            goalRewardName: rewardList.find((x) => x.kind === 'goal')?.name ?? null,
-            catalog: rewardList
-              .filter((x) => x.kind === 'catalog' && x.cost !== null)
-              .map((x) => ({ id: x.id, name: x.name, cost: x.cost! })),
-            availableEarnedRewardIds: available.map((a) => a.id),
-          },
-          new Date(),
-        )
-      )
-        message = { key: r.key, text: r.message };
-    }
+    // Último mensaje automático vigente (la misma regla que usa el pase de Wallet).
+    const message = await loadCardMessage(tx, {
+      membershipId: row.membershipId,
+      programId: row.programId,
+      status: row.status,
+      mode: row.mode,
+      balance: row.balance,
+      goal: row.goal,
+    });
 
     return {
       organization: {

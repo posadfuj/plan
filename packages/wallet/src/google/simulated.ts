@@ -2,11 +2,11 @@
  * Google Wallet simulado: imita las respuestas de la API real (404, 409, caídas) en memoria.
  * El proveedor de Google corre su código completo contra esto; solo cambia el cliente HTTP.
  */
-import { GoogleApiError, type GoogleWalletApi } from './api';
+import { GoogleApiError, type GoogleMessage, type GoogleWalletApi } from './api';
 import type { LoyaltyClass, LoyaltyObject } from './payload';
 
 export interface SimulatedGoogleCall {
-  op: 'insertClass' | 'insertObject' | 'patchObject';
+  op: 'insertClass' | 'insertObject' | 'patchObject' | 'patchClass' | 'addMessage';
   id: string;
   at: Date;
 }
@@ -56,6 +56,29 @@ export class SimulatedGoogleWalletApi implements GoogleWalletApi {
     const points = (next.loyaltyPoints as LoyaltyObject['loyaltyPoints'] | undefined)?.balance.int;
     this.opts.log?.(
       `[google simulado] objeto actualizado ${id}: ${String(next.state)} · saldo ${points ?? '—'}`,
+    );
+  }
+
+  async patchClass(id: string, c: Record<string, unknown>) {
+    this.check('patchClass', id);
+    const cur = this.classes.get(id);
+    if (!cur) throw new GoogleApiError(404, `clase ${id} no existe`);
+    this.classes.set(id, { ...cur, ...c } as LoyaltyClass);
+    this.opts.log?.(`[google simulado] clase actualizada ${id}: ${String(c.issuerName ?? cur.issuerName)}`);
+  }
+
+  /** Mensajes por objeto, en orden (los TEXT_AND_NOTIFY serían una notificación en el celular). */
+  readonly messages = new Map<string, GoogleMessage[]>();
+
+  async addMessage(objectId: string, message: GoogleMessage) {
+    this.check('addMessage', objectId);
+    if (!this.objects.has(objectId)) throw new GoogleApiError(404, `objeto ${objectId} no existe`);
+    const list = this.messages.get(objectId) ?? [];
+    if (list.some((m) => m.id === message.id))
+      throw new GoogleApiError(409, `mensaje ${message.id} ya existe`);
+    this.messages.set(objectId, [...list, message]);
+    this.opts.log?.(
+      `[google simulado] ${message.messageType === 'TEXT_AND_NOTIFY' ? 'notificación' : 'mensaje'} en ${objectId}: ${message.header}`,
     );
   }
 

@@ -52,6 +52,7 @@ const { url, classId, objectId } = await buildGoogleSaveUrl({
     primaryColor: '#1F2937',
     logoUrl: logoUrl!,
     status: 'active',
+    message: null,
   },
 });
 

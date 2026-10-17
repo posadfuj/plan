@@ -237,6 +237,12 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@aiment/business':
+        specifier: workspace:*
+        version: link:../../packages/business
+      '@aiment/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       jose:
         specifier: ^6.2.12
         version: 6.2.12
@@ -326,6 +332,9 @@ importers:
       '@aiment/mail':
         specifier: workspace:*
         version: link:../mail
+      '@aiment/wallet':
+        specifier: workspace:*
+        version: link:../wallet
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(pg@8.23.0)(postgres@3.4.9)

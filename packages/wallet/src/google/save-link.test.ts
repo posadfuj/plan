@@ -20,6 +20,7 @@ const view: MembershipView = {
   primaryColor: '#1F2937',
   logoUrl: null,
   status: 'active',
+  message: null,
 };
 
 describe('enlace Guardar en Google Wallet', () => {

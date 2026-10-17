@@ -4,12 +4,15 @@
  * código que en modo real; solo la API de Google es la simulada.
  */
 import { createDb, schema, withSystemTx, type DbHandle } from '@aiment/db';
-import { adjust, earn, redeem, voidEntry } from '@aiment/ledger';
+import { removeLogo, setLogo, updateBranding } from '@aiment/business';
+import { adjust, createRuleVersion, earn, redeem, updateProgram, voidEntry } from '@aiment/ledger';
+import { MemoryStorage } from '@aiment/storage';
 import { createTestOrg, type TestOrg } from '@aiment/ledger/test-fixtures';
 import {
   FakeWalletProvider,
   googleClassId,
   GoogleWalletProvider,
+  loadCardMessage,
   requestWalletLink,
   SimulatedGoogleWalletApi,
   type LoyaltyClass,
@@ -319,5 +322,127 @@ describe('Google Wallet simulado: un pase por cliente y aislamiento por negocio'
       ['google-sim:3388000000000000000', 'active'],
       ['google:3388000000099999999', 'revoked'],
     ]);
+  });
+});
+
+describe('Google Wallet simulado: cambios del dueño y mensajes (bloque 2)', () => {
+  /** PNG de 1×1 (alcanza para validar el tipo por contenido). */
+  const PNG = Uint8Array.from(
+    Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64',
+    ),
+  );
+  const cls = (org: TestOrg) => api.classes.get(googleClassId(ISSUER, org.programId));
+  const editor = (org: TestOrg) => ({ orgUserId: org.owner.orgUserId, actorType: 'owner' as const });
+
+  it('nombre, color y logo nuevos: la clase cambia en Google (solo la de ese negocio) y cada pase se reenvía', async () => {
+    const org = await createTestOrg(handle.db, { mode: 'stamps', goal: 4 });
+    const other = await createTestOrg(handle.db, { mode: 'stamps', goal: 4 });
+    const a = await savePass(await org.newMembership());
+    const b = await savePass(await org.newMembership());
+    await savePass(await other.newMembership());
+    const otherBefore = structuredClone(cls(other));
+    const patchesBefore = api.calls.filter(
+      (c) => c.op === 'patchObject' && [a.externalId, b.externalId].includes(c.id),
+    ).length;
+
+    await updateBranding(handle.db, org.orgId, editor(org), {
+      name: 'Barbería Renovada',
+      primaryColor: '#0F766E',
+    });
+    await waitFor(
+      () => cls(org)?.issuerName === 'Barbería Renovada' && cls(org)?.hexBackgroundColor === '#0F766E',
+    );
+    // Cada pase se reenvió (la meta, la unidad y el nombre en el mensaje viven en el objeto).
+    await waitFor(
+      () =>
+        api.calls.filter((c) => c.op === 'patchObject' && [a.externalId, b.externalId].includes(c.id))
+          .length >=
+        patchesBefore + 2,
+    );
+    expect(cls(other)).toEqual(otherBefore); // el otro negocio no se toca
+
+    const storage = new MemoryStorage();
+    await setLogo(handle.db, storage, org.orgId, editor(org), PNG);
+    await waitFor(() => /\/v1\/public\/files\/logos\/.+\.png$/.test(cls(org)!.programLogo.sourceUri.uri));
+    await removeLogo(handle.db, org.orgId, editor(org));
+    await waitFor(() => cls(org)!.programLogo.sourceUri.uri === `${BASE}/wallet-logo.png`);
+  });
+
+  it('nueva meta, nombre y unidad del programa: los pases ya guardados muestran la regla nueva', async () => {
+    const org = await createTestOrg(handle.db, { mode: 'stamps', goal: 4 });
+    const m = await org.newMembership();
+    const { externalId } = await savePass(m);
+    await createRuleVersion(handle.db, org.orgId, org.owner, {
+      earnRule: { type: 'per_visit', units: 1 },
+      goal: 6,
+    });
+    await updateProgram(handle.db, org.orgId, org.owner, { name: 'Club Cortes', unitLabel: 'cortes' });
+    await waitFor(() => cls(org)?.programName === 'Club Cortes');
+    await waitFor(() => object(externalId)?.loyaltyPoints.label === 'cortes (meta 6)');
+    expect(object(externalId)!.textModulesData[0]!.body).toBe('0 de 6 cortes · te faltan 6');
+  });
+
+  it('mensajes automáticos: el pase muestra el de la tarjeta; la meta cumplida notifica una vez; anularla lo quita', async () => {
+    const org = await createTestOrg(handle.db, { mode: 'stamps', goal: 2 });
+    await withSystemTx(handle.db, (tx) =>
+      tx
+        .insert(schema.orgFeatureOverrides)
+        .values({ organizationId: org.orgId, feature: 'automations', value: true }),
+    );
+    const m = await org.newMembership();
+    const { externalId } = await savePass(m);
+    const start = Date.now() - 20 * 3_600_000;
+    let last;
+    for (let i = 0; i < 2; i++)
+      last = await earn(handle.db, org.orgId, {
+        membershipId: m,
+        operator: org.staff,
+        idempotencyKey: key(),
+        now: new Date(start + i * 5 * 3_600_000),
+      });
+
+    const cardMessage = await withSystemTx(handle.db, async (tx) => {
+      const [row] = await tx
+        .select({ balance: schema.memberships.balance, status: schema.memberships.status })
+        .from(schema.memberships)
+        .where(eq(schema.memberships.id, m));
+      return loadCardMessage(tx, {
+        membershipId: m,
+        programId: org.programId,
+        mode: 'stamps',
+        goal: 2,
+        ...row!,
+      });
+    });
+    expect(cardMessage?.key).toBe('goal_reached');
+    const messageModule = () => object(externalId)?.textModulesData.find((t) => t.id === 'message');
+    await waitFor(() => messageModule()?.body === cardMessage!.text);
+    await waitFor(() => (api.messages.get(externalId) ?? []).length === 1);
+    expect(api.messages.get(externalId)![0]).toMatchObject({
+      messageType: 'TEXT_AND_NOTIFY',
+      body: cardMessage!.text,
+    });
+
+    // Reenviar los mismos eventos (entrega "al menos una vez") no notifica dos veces.
+    await withSystemTx(handle.db, (tx) =>
+      tx
+        .update(schema.eventOutbox)
+        .set({ dispatchedAt: null })
+        .where(and(eq(schema.eventOutbox.aggregateId, m), eq(schema.eventOutbox.type, 'automation.ran'))),
+    );
+    await worker.tick();
+    await new Promise((r) => setTimeout(r, 2500));
+    expect(api.messages.get(externalId)).toHaveLength(1);
+
+    // Se anula la visita que completó la meta: el mensaje deja de estar vigente y sale del pase.
+    await voidEntry(handle.db, org.orgId, {
+      entryId: last!.entries.find((e) => e.kind === 'earn')!.id,
+      reason: 'Visita por error',
+      operator: org.owner,
+      idempotencyKey: key(),
+    });
+    await waitFor(() => messageModule()?.body !== cardMessage!.text);
   });
 });

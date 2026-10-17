@@ -27,6 +27,22 @@ export interface MembershipView {
   logoUrl: string | null;
   /** blocked: el negocio pausó la tarjeta; el pase se muestra sin QR. */
   status: 'active' | 'blocked';
+  /** Mensaje automático vigente (el mismo que la tarjeta web), o null. */
+  message: string | null;
+}
+
+/** Lo que define la marca del pase de todo un programa (la clase de Google). */
+export type ProgramView = Pick<
+  MembershipView,
+  'organizationId' | 'organizationName' | 'programId' | 'programName' | 'primaryColor' | 'logoUrl'
+>;
+
+/** Aviso con notificación en el celular (p. ej. "¡Completaste tu tarjeta!"). */
+export interface WalletNotice {
+  /** Estable por aviso: repetirlo no notifica dos veces. */
+  id: string;
+  header: string;
+  body: string;
 }
 
 export interface WalletPassRef {
@@ -58,6 +74,13 @@ export interface WalletProvider {
   update(view: MembershipView, pass: WalletPassRef): Promise<void>;
   /** Cliente eliminado: el pase queda inactivo y sin datos personales. Idempotente. */
   revoke(pass: WalletPassRef): Promise<void>;
+  /**
+   * El dueño cambió la marca o el programa: actualiza lo común a todos los pases (la clase de
+   * Google). Opcional: Apple no tiene clases (cada pase se reenvía entero).
+   */
+  updateProgram?(program: ProgramView): Promise<void>;
+  /** Avisa en el celular con una notificación. Opcional; idempotente por `notice.id`. */
+  notify?(view: MembershipView, pass: WalletPassRef, notice: WalletNotice): Promise<void>;
 }
 
 export class WalletProviderError extends Error {

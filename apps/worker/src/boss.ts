@@ -1,10 +1,16 @@
 import { PgBoss } from 'pg-boss';
 import { safeError } from '@aiment/config';
 import type { Db } from '@aiment/db';
-import type { WalletProvider, WalletProviderName } from '@aiment/wallet';
+import { WalletProviderError, type WalletProvider, type WalletProviderName } from '@aiment/wallet';
 import { EXPIRATION_CRON, EXPIRATION_QUEUE, runScheduledExpirations } from './expirations';
 import { dispatchOutboxBatch, WALLET_QUEUES, type WalletSyncJob } from './outbox';
-import { revokeMembershipPasses, syncMembershipPasses } from './wallet-sync';
+import {
+  notifyMembershipPasses,
+  revokeMembershipPasses,
+  syncMembershipPasses,
+  syncProgram,
+  syncProgramMemberships,
+} from './wallet-sync';
 
 export interface WorkerOptions {
   databaseUrl: string;
@@ -35,6 +41,10 @@ export async function startWorker(opts: WorkerOptions) {
   boss.on('error', (err) => log(`[pg-boss] ${safeError(err)}`));
   await boss.start();
 
+  const debounce = opts.debounceSeconds ?? 3;
+  const enqueue = (queue: string, data: WalletSyncJob, key: string) =>
+    debounce > 0 ? boss.sendDebounced(queue, data, null, debounce, key) : boss.send(queue, data);
+
   const retry = opts.retry ?? { limit: 8, delaySeconds: 5, backoff: true };
   // Una cola por proveedor. Puede haber varios del mismo proveedor (p. ej. dos cuentas emisoras
   // durante una migración): cada pase lo atiende el que reconoce su issuer_ref.
@@ -53,11 +63,51 @@ export async function startWorker(opts: WorkerOptions) {
       { pollingIntervalSeconds: opts.pollSeconds ?? 1 },
       async ([job]) => {
         if (!job) return;
-        const { membershipId, action } = job.data;
+        const { action, programId, runId } = job.data;
+        const membershipId = job.data.membershipId ?? '';
+
+        if (action === 'program') {
+          // Marca o programa cambiados: la clase primero, después cada pase (con debounce).
+          let memberships: string[];
+          try {
+            ({ memberships } = await syncProgram(opts.db, providers, programId!, opts.publicBaseUrl, name));
+          } catch (err) {
+            if (err instanceof WalletProviderError && !err.retryable) {
+              log(`[${queue}] programa: ${err.message} (no se reintenta)`);
+              memberships = (await syncProgramMemberships(opts.db, programId!, name)) ?? [];
+            } else {
+              log(`[${queue}] programa: ${safeError(err)}, se reintentará (intento ${job.retryCount + 1})`);
+              throw err;
+            }
+          }
+          for (const m of memberships)
+            await enqueue(
+              queue,
+              {
+                organizationId: job.data.organizationId,
+                provider: name,
+                eventId: job.data.eventId,
+                membershipId: m,
+              },
+              `${name}:${m}`,
+            );
+          log(`[${queue}] programa actualizado: ${memberships.length} pase(s) a reenviar`);
+          return;
+        }
+
         const r =
           action === 'revoke'
             ? await revokeMembershipPasses(opts.db, providers, membershipId, name)
-            : await syncMembershipPasses(opts.db, providers, membershipId, opts.publicBaseUrl, name);
+            : action === 'notify'
+              ? await notifyMembershipPasses(
+                  opts.db,
+                  providers,
+                  membershipId,
+                  runId!,
+                  opts.publicBaseUrl,
+                  name,
+                )
+              : await syncMembershipPasses(opts.db, providers, membershipId, opts.publicBaseUrl, name);
         const retryable = r.failed.filter((f) => f.retryable);
         for (const f of r.failed.filter((x) => !x.retryable))
           log(`[${queue}] ${membershipId}: ${f.error} (no se reintenta: queda en last_error)`);
@@ -67,10 +117,10 @@ export async function startWorker(opts: WorkerOptions) {
           );
           throw new Error(retryable.map((f) => `${f.externalId}: ${f.error}`).join('; '));
         }
-        if (r.synced)
-          log(
-            `[${queue}] ${membershipId}: ${r.synced} pase(s) ${action === 'revoke' ? 'cerrado(s)' : 'sincronizado(s)'}`,
-          );
+        const done = { revoke: 'cerrado(s)', notify: 'notificado(s)', sync: 'sincronizado(s)' }[
+          action ?? 'sync'
+        ];
+        if (r.synced) log(`[${queue}] ${membershipId}: ${r.synced} pase(s) ${done}`);
       },
     );
   }
@@ -85,10 +135,6 @@ export async function startWorker(opts: WorkerOptions) {
         `[vencimientos] ${r.organizations} negocio(s): ${r.expiredRewards} premio(s) y ${r.expiredMemberships} saldo(s) vencidos${r.failed ? `, ${r.failed} con error` : ''}`,
       );
   });
-
-  const debounce = opts.debounceSeconds ?? 3;
-  const enqueue = (queue: string, data: WalletSyncJob, key: string) =>
-    debounce > 0 ? boss.sendDebounced(queue, data, null, debounce, key) : boss.send(queue, data);
 
   let running = true;
   let busy = false;

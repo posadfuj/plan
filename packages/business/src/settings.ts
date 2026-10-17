@@ -3,7 +3,7 @@
  * frase, condiciones del programa y contacto.
  */
 import { checkBrandColor, contrastRatio, publicBranding, readBranding, HEX_COLOR_RE } from '@aiment/core';
-import { schema, withTenantTx, type Db } from '@aiment/db';
+import { schema, withTenantTx, type Db, type Tx } from '@aiment/db';
 import { EMAIL_RE } from '@aiment/enrollment';
 import { MAX_LOGO_BYTES, sniffImage, type ObjectStorage } from '@aiment/storage';
 import { randomBytes } from 'node:crypto';
@@ -12,7 +12,16 @@ import { z } from 'zod';
 import { BusinessError, notFound, type Editor } from './errors';
 import { planUsage } from './limits';
 
-const { organizations, auditLogs } = schema;
+const { organizations, auditLogs, eventOutbox } = schema;
+
+/** Nombre, color o logo cambiados: los pases de Wallet de todo el negocio se actualizan (worker). */
+const brandingChanged = (tx: Tx, orgId: string, fields: string[]) =>
+  tx.insert(eventOutbox).values({
+    organizationId: orgId,
+    type: 'organization.branding_updated',
+    aggregateId: orgId,
+    payload: { fields },
+  });
 
 /** Por debajo de este contraste contra blanco los sellos prácticamente no se ven: se rechaza. */
 export const MIN_ACCEPTED_CONTRAST = 1.5;
@@ -125,6 +134,7 @@ export async function updateBranding(db: Db, orgId: string, editor: Editor, raw:
       before: { name: org.name, primaryColor: before.primaryColor },
       after: { name: input.name ?? org.name, primaryColor: next.primaryColor, fields: Object.keys(input) },
     });
+    await brandingChanged(tx, orgId, Object.keys(input));
   });
   return getSettings(db, orgId);
 }
@@ -167,6 +177,7 @@ export async function setLogo(
       entityId: orgId,
       after: { logoKey: key, bytes: bytes.length, type: kind.contentType },
     });
+    await brandingChanged(tx, orgId, ['logo']);
   });
   return getSettings(db, orgId);
 }
@@ -192,6 +203,7 @@ export async function removeLogo(db: Db, orgId: string, editor: Editor) {
       entityType: 'organization',
       entityId: orgId,
     });
+    await brandingChanged(tx, orgId, ['logo']);
   });
   return getSettings(db, orgId);
 }

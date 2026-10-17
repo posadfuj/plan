@@ -25,6 +25,7 @@ const view: MembershipView = {
   primaryColor: '#7C3AED',
   logoUrl: 'https://aiment.test/v1/public/files/logos/o1/logo.png',
   status: 'active',
+  message: null,
 };
 
 let sa: GoogleServiceAccount;
@@ -203,5 +204,60 @@ describe('Google Wallet: actualizar y cerrar pases', () => {
     expect(provider.handles(`google-sim:${ISSUER}`)).toBe(true);
     expect(provider.handles(`google:${ISSUER}`)).toBe(false);
     expect(provider.handles('fake:google-local')).toBe(false);
+  });
+});
+
+describe('Google Wallet: marca, programa y mensajes (bloque 2)', () => {
+  it('cambiar nombre, color o logo actualiza la clase; si nadie guardó un pase, no hace nada', async () => {
+    const { api, provider } = setup();
+    const program = {
+      organizationId: 'o1',
+      organizationName: 'Barbería Pedro & Hijos',
+      programId: 'p1',
+      programName: 'Club Pedro',
+      primaryColor: '#0F766E',
+      logoUrl: null,
+    };
+    await expect(provider.updateProgram(program)).resolves.toBeUndefined(); // clase aún no existe
+    expect(api.classes.size).toBe(0);
+
+    const issued = await provider.issue(view);
+    api.saveFromJwt(jwtPayload(issued.addUrl));
+    await provider.updateProgram(program);
+    expect(api.classes.get(googleClassId(ISSUER, 'p1'))).toMatchObject({
+      issuerName: 'Barbería Pedro & Hijos',
+      programName: 'Club Pedro',
+      hexBackgroundColor: '#0F766E',
+      programLogo: { sourceUri: { uri: 'https://aiment.test/wallet-logo.png' } },
+      reviewStatus: 'UNDER_REVIEW',
+    });
+  });
+
+  it('el pase muestra el mensaje automático vigente (no en una tarjeta pausada)', async () => {
+    const { provider } = setup();
+    const msg = '¡Completaste tu tarjeta! Canjea tu corte gratis en caja.';
+    const obj = jwtPayload((await provider.issue({ ...view, message: msg })).addUrl).loyaltyObjects[0]!;
+    expect(obj.textModulesData).toContainEqual({ id: 'message', header: 'Barbería Pedro', body: msg });
+    const paused = jwtPayload((await provider.issue({ ...view, message: msg, status: 'blocked' })).addUrl)
+      .loyaltyObjects[0]!;
+    expect(paused.textModulesData.map((m) => m.id)).not.toContain('message');
+  });
+
+  it('notificación: llega una sola vez aunque se repita; sin pase guardado no falla', async () => {
+    const { api, provider } = setup();
+    const issued = await provider.issue(view);
+    const notice = { id: 'aw_run-1', header: 'Barbería Pedro', body: '¡Completaste tu tarjeta!' };
+    await provider.notify(view, ref(provider, issued.externalId), notice); // aún no lo guardó
+    api.saveFromJwt(jwtPayload(issued.addUrl));
+    await provider.notify(view, ref(provider, issued.externalId), notice);
+    await provider.notify(view, ref(provider, issued.externalId), notice);
+    expect(api.messages.get(issued.externalId)).toEqual([
+      {
+        id: 'aw_run-1',
+        header: 'Barbería Pedro',
+        body: '¡Completaste tu tarjeta!',
+        messageType: 'TEXT_AND_NOTIFY',
+      },
+    ]);
   });
 });

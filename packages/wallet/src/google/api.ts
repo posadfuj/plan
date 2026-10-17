@@ -15,6 +15,17 @@ export interface GoogleWalletApi {
   insertObject(o: LoyaltyObject): Promise<void>;
   /** Cambia solo los campos enviados. 404 si el objeto no existe (el cliente aún no lo guardó). */
   patchObject(id: string, o: Record<string, unknown>): Promise<void>;
+  /** Cambia la clase (marca del programa). 404 si nadie guardó todavía un pase de esa clase. */
+  patchClass(id: string, c: Record<string, unknown>): Promise<void>;
+  /** Mensaje en el pase; con TEXT_AND_NOTIFY llega como notificación. 409 si ya se envió ese id. */
+  addMessage(objectId: string, message: GoogleMessage): Promise<void>;
+}
+
+export interface GoogleMessage {
+  id: string;
+  header: string;
+  body: string;
+  messageType: 'TEXT' | 'TEXT_AND_NOTIFY';
 }
 
 /** Error de la API de Google. `retryable` decide si el worker lo reintenta. */
@@ -61,6 +72,12 @@ export class HttpGoogleWalletApi implements GoogleWalletApi {
   }
   patchObject(id: string, o: Record<string, unknown>) {
     return this.call('PATCH', `/loyaltyObject/${encodeURIComponent(id)}`, o);
+  }
+  patchClass(id: string, c: Record<string, unknown>) {
+    return this.call('PATCH', `/loyaltyClass/${encodeURIComponent(id)}`, c);
+  }
+  addMessage(objectId: string, message: GoogleMessage) {
+    return this.call('POST', `/loyaltyObject/${encodeURIComponent(objectId)}/addMessage`, { message });
   }
 
   private async call(method: string, path: string, body: unknown, retriedAuth = false): Promise<void> {

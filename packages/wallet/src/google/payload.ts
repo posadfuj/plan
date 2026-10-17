@@ -4,7 +4,7 @@
  * "Guardar en Google Wallet", la API de Google y la vista previa del modo simulado.
  */
 import { createHash } from 'node:crypto';
-import type { MembershipView } from '../types';
+import type { MembershipView, ProgramView } from '../types';
 
 /** Color de fondo si el negocio no eligió uno (gris oscuro, contraste alto con texto blanco). */
 const DEFAULT_BACKGROUND = '#1F2937';
@@ -25,7 +25,7 @@ const text = (value: string) => ({ defaultValue: { language: 'es-PE', value } })
 
 export interface LoyaltyClassInput {
   classId: string;
-  view: MembershipView;
+  view: Pick<ProgramView, 'organizationName' | 'programName' | 'primaryColor'>;
   /** URL pública https del logo (Google la descarga al guardar el pase). */
   logoUrl: string;
   /** Enlace "Powered by Aiment Wallet" en el detalle del pase (opcional hasta tener dominio). */
@@ -54,6 +54,15 @@ export function buildLoyaltyClass({ classId, view, logoUrl, poweredByUrl }: Loya
   };
 }
 export type LoyaltyClass = ReturnType<typeof buildLoyaltyClass>;
+
+/**
+ * Lo que cambia cuando el dueño edita la marca o el programa. Google lo propaga a todos los
+ * pases guardados de esa clase. `reviewStatus` es obligatorio al editar una clase.
+ */
+export function buildClassPatch(input: LoyaltyClassInput) {
+  const { issuerName, programName, programLogo, hexBackgroundColor, reviewStatus } = buildLoyaltyClass(input);
+  return { issuerName, programName, programLogo, hexBackgroundColor, reviewStatus };
+}
 
 /** "7 de 10 sellos · te faltan 3" / "120 puntos". */
 export function progressText(view: MembershipView): string {
@@ -90,6 +99,10 @@ export function buildLoyaltyObject(objectId: string, classId: string, view: Memb
             body: `${view.organizationName} pausó tu tarjeta. Consulta en el local: tus ${view.unitLabel} siguen guardados.`,
           }
         : { id: 'progress', header: 'Tu progreso', body: progressText(view) },
+      // El mismo mensaje automático que la tarjeta web (bienvenida, meta cumplida, te falta poco).
+      ...(!blocked && view.message
+        ? [{ id: 'message', header: view.organizationName, body: view.message }]
+        : []),
       { id: 'powered_by', header: 'Tarjeta digital', body: 'Powered by Aiment Wallet' },
     ],
   };

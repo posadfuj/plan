@@ -4,9 +4,23 @@
  * pasar de uno a otro es configuración (ver config.ts).
  */
 import { randomBytes } from 'node:crypto';
-import type { IssueResult, MembershipView, WalletPassRef, WalletProvider } from '../types';
+import type {
+  IssueResult,
+  MembershipView,
+  ProgramView,
+  WalletNotice,
+  WalletPassRef,
+  WalletProvider,
+} from '../types';
 import { isConflict, isNotFound, type GoogleWalletApi } from './api';
-import { buildLoyaltyClass, buildLoyaltyObject, buildRevokedPatch, googleClassId } from './payload';
+import {
+  buildClassPatch,
+  buildLoyaltyClass,
+  buildLoyaltyObject,
+  buildRevokedPatch,
+  googleClassId,
+  safeIdSuffix,
+} from './payload';
 import { GOOGLE_SAVE_URL, signSaveJwt, type GoogleServiceAccount } from './save-link';
 
 export type GoogleWalletMode = 'live' | 'simulated';
@@ -95,13 +109,49 @@ export class GoogleWalletProvider implements WalletProvider {
     }
   }
 
+  /**
+   * El dueño cambió nombre, color, logo o programa: se actualiza la clase y Google lo muestra en
+   * todos los pases guardados. Si nadie guardó aún un pase, la clase no existe: se creará con la
+   * marca nueva en el próximo pase.
+   */
+  async updateProgram(program: ProgramView): Promise<void> {
+    const classId = googleClassId(this.opts.issuerId, program.programId);
+    try {
+      await this.opts.api.patchClass(
+        classId,
+        buildClassPatch({ classId, view: program, logoUrl: this.logo(program) }),
+      );
+    } catch (err) {
+      if (!isNotFound(err)) throw err;
+    }
+  }
+
+  /** Notificación en el celular (máx. 3 por pase cada 24 h según Google). Repetirla no duplica. */
+  async notify(_view: MembershipView, pass: WalletPassRef, notice: WalletNotice): Promise<void> {
+    try {
+      await this.opts.api.addMessage(pass.externalId, {
+        id: safeIdSuffix(notice.id),
+        header: notice.header,
+        body: notice.body,
+        messageType: 'TEXT_AND_NOTIFY',
+      });
+    } catch (err) {
+      // 409: ya se envió · 404: el cliente no guardó el pase (no hay a quién avisar).
+      if (!isConflict(err) && !isNotFound(err)) throw err;
+    }
+  }
+
+  private logo(v: Pick<ProgramView, 'logoUrl'>) {
+    return v.logoUrl ?? `${this.base}${DEFAULT_LOGO_PATH}`;
+  }
+
   private payload(view: MembershipView, objectId: string) {
     const classId = googleClassId(this.opts.issuerId, view.programId);
     return {
       loyaltyClass: buildLoyaltyClass({
         classId,
         view,
-        logoUrl: view.logoUrl ?? `${this.base}${DEFAULT_LOGO_PATH}`,
+        logoUrl: this.logo(view),
       }),
       loyaltyObject: buildLoyaltyObject(objectId, classId, view),
     };

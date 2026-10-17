@@ -1,7 +1,8 @@
 import { publicFilePath, readBranding } from '@aiment/core';
 import { schema, type Tx } from '@aiment/db';
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import type { MembershipView } from './types';
+import { loadCardMessage } from './message';
+import type { MembershipView, ProgramView } from './types';
 
 const { memberships, customers, loyaltyPrograms, organizations, programRuleVersions } = schema;
 
@@ -48,6 +49,15 @@ export async function loadMembershipView(
   if (!row) return null;
   const branding = readBranding(row.branding);
   const base = publicBaseUrl.replace(/\/$/, '');
+  const goal = row.mode === 'stamps' ? row.goal : null;
+  const message = await loadCardMessage(tx, {
+    membershipId: row.membershipId,
+    programId: row.programId,
+    status: row.status,
+    mode: row.mode,
+    balance: row.balance,
+    goal: row.goal,
+  });
   return {
     membershipId: row.membershipId,
     organizationId: row.organizationId,
@@ -57,16 +67,46 @@ export async function loadMembershipView(
     mode: row.mode,
     unitLabel: row.unitLabel,
     balance: row.balance,
-    goal: row.mode === 'stamps' ? row.goal : null,
+    goal,
     availableRewards: row.availableRewards,
     customerDisplayName: displayName(row.fullName),
     scanUrl: `${base}/s/${row.scanToken}`,
     shortCode: row.shortCode,
     primaryColor: branding.primaryColor,
-    logoUrl:
-      branding.logoKey && WALLET_LOGO.test(branding.logoKey)
-        ? `${base}${publicFilePath(branding.logoKey)}`
-        : null,
+    logoUrl: walletLogoUrl(branding.logoKey, base),
     status: row.status as 'active' | 'blocked',
+    message: message?.text ?? null,
+  };
+}
+
+const walletLogoUrl = (logoKey: string | null, base: string) =>
+  logoKey && WALLET_LOGO.test(logoKey) ? `${base}${publicFilePath(logoKey)}` : null;
+
+/** Marca de un programa (para actualizar la clase de Google). null si no existe. */
+export async function loadProgramView(
+  tx: Tx,
+  programId: string,
+  publicBaseUrl: string,
+): Promise<ProgramView | null> {
+  const [row] = await tx
+    .select({
+      organizationId: organizations.id,
+      organizationName: organizations.name,
+      branding: organizations.branding,
+      programId: loyaltyPrograms.id,
+      programName: loyaltyPrograms.name,
+    })
+    .from(loyaltyPrograms)
+    .innerJoin(organizations, eq(organizations.id, loyaltyPrograms.organizationId))
+    .where(eq(loyaltyPrograms.id, programId));
+  if (!row) return null;
+  const branding = readBranding(row.branding);
+  return {
+    organizationId: row.organizationId,
+    organizationName: row.organizationName,
+    programId: row.programId,
+    programName: row.programName,
+    primaryColor: branding.primaryColor,
+    logoUrl: walletLogoUrl(branding.logoKey, publicBaseUrl.replace(/\/$/, '')),
   };
 }

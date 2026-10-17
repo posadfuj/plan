@@ -1,6 +1,7 @@
 import { schema, withSystemTx, type Db } from '@aiment/db';
 import {
   loadMembershipView,
+  loadProgramView,
   WalletProviderError,
   type WalletPassRef,
   type WalletProvider,
@@ -120,4 +121,80 @@ export async function revokeMembershipPasses(
       ),
   );
   return forEachPass(db, providers, passes as WalletPassRef[], (p, pass) => p.revoke(pass));
+}
+
+/**
+ * Notificación de un mensaje automático (p. ej. meta cumplida). Solo si la ejecución sigue
+ * vigente (si se anuló la visita que la disparó, no se avisa). Idempotente por `runId`.
+ */
+export async function notifyMembershipPasses(
+  db: Db,
+  providers: WalletProvider[],
+  membershipId: string,
+  runId: string,
+  publicBaseUrl: string,
+  onlyProvider?: WalletProviderName,
+): Promise<SyncResult> {
+  const { view, run, passes } = await withSystemTx(db, async (tx) => ({
+    view: await loadMembershipView(tx, membershipId, publicBaseUrl),
+    run: (
+      await tx
+        .select({ status: schema.automationRuns.status, result: schema.automationRuns.result })
+        .from(schema.automationRuns)
+        .where(and(eq(schema.automationRuns.id, runId), eq(schema.automationRuns.membershipId, membershipId)))
+    )[0],
+    passes: await tx
+      .select(passFields)
+      .from(schema.walletPasses)
+      .where(
+        and(
+          eq(schema.walletPasses.membershipId, membershipId),
+          eq(schema.walletPasses.status, 'active'),
+          onlyProvider ? eq(schema.walletPasses.provider, onlyProvider) : undefined,
+        ),
+      ),
+  }));
+  const text = (run?.result as { message?: string } | null)?.message;
+  if (!view || view.status !== 'active' || run?.status !== 'done' || !text) return { synced: 0, failed: [] };
+  const notice = { id: `aw_${runId}`, header: view.organizationName, body: text };
+  return forEachPass(db, providers, passes as WalletPassRef[], (p, pass) =>
+    p.notify ? p.notify(view, pass, notice) : Promise.resolve(),
+  );
+}
+
+/** Membresías con pase activo de un proveedor en un programa. */
+export function syncProgramMemberships(db: Db, programId: string, provider: WalletProviderName) {
+  return withSystemTx(db, async (tx) =>
+    (
+      await tx
+        .selectDistinct({ id: schema.walletPasses.membershipId })
+        .from(schema.walletPasses)
+        .innerJoin(schema.memberships, eq(schema.memberships.id, schema.walletPasses.membershipId))
+        .where(
+          and(
+            eq(schema.memberships.programId, programId),
+            eq(schema.walletPasses.provider, provider),
+            eq(schema.walletPasses.status, 'active'),
+          ),
+        )
+    ).map((m) => m.id),
+  );
+}
+
+/**
+ * Marca o programa cambiados: actualiza lo común (la clase de Google) y devuelve las membresías
+ * con pase activo de ese proveedor, para reenviar cada pase (la meta y la unidad están en cada uno).
+ */
+export async function syncProgram(
+  db: Db,
+  providers: WalletProvider[],
+  programId: string,
+  publicBaseUrl: string,
+  provider: WalletProviderName,
+): Promise<{ memberships: string[] }> {
+  const program = await withSystemTx(db, (tx) => loadProgramView(tx, programId, publicBaseUrl));
+  if (!program) return { memberships: [] };
+  // Un fallo aquí se lanza: el job se reintenta y recién entonces se reenvían los pases.
+  for (const p of providers) await p.updateProgram?.(program);
+  return { memberships: await syncProgramMemberships(db, programId, provider) };
 }

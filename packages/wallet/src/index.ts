@@ -1,6 +1,7 @@
 export * from './types';
 export * from './fake';
 export * from './view';
+export * from './message';
 export * from './passes';
 export * from './google/payload';
 export * from './google/save-link';

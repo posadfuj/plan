@@ -17,6 +17,8 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@aiment/business": "workspace:*",
+    "@aiment/storage": "workspace:*",
     "jose": "^6.2.12"
   }
 }
