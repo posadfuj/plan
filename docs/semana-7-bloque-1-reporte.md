@@ -2,6 +2,17 @@
 
 Fecha: 17/10/2026 · Estado: **terminado como integración simulada** (no es la integración real). CI verde en el [run #29](https://github.com/posadfuj/plan/actions/runs/39036634627). Falta la prueba real en Android, que necesita tus credenciales de Google. Después de esa prueba se aprueba el bloque y se pasa al Bloque 2.
 
+> **Aprobado por el fundador el 17/10/2026 como integración simulada.** La integración real con Google Wallet **no** está aprobada todavía.
+>
+> **Pendiente obligatorio del Bloque 1** (con el Issuer ID, las credenciales reales y un Android físico):
+>
+> - [ ] Guardar el pase desde la tarjeta web en Google Wallet.
+> - [ ] Sumar en caja y verificar que el pase se actualice.
+> - [ ] Pausar la tarjeta (el pase pierde el QR) y reactivarla (vuelve el QR).
+> - [ ] Escanear en la caja el QR que muestra Google Wallet.
+>
+> Riesgos y deudas de la sección 4 aceptados para este bloque.
+
 ## 1. Qué quedó implementado
 
 | Pieza                                   | Qué hace                                                                                                                                                                                                                                                                                        |
