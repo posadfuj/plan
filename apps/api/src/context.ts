@@ -35,6 +35,8 @@ export interface AppDeps {
   authAdmin?: AuthAdmin | null;
   /** Google Wallet (real o simulado, ver @aiment/wallet createGoogleWallet). null/ausente = sin botón. */
   googleWallet?: WalletProvider | null;
+  /** Mide cada pedido de la caja (/v1/staff/*): duración y código. Para el monitoreo en producción. */
+  onCashierRequest?: (ms: number, status: number) => void;
 }
 
 /** Dependencias ya resueltas con valores por defecto (las usan las rutas). */

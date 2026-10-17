@@ -47,6 +47,14 @@ export function createApp(input: AppDeps) {
   const app = new Hono<AppEnv>();
 
   app.use(requestId(), secureHeaders());
+  if (input.onCashierRequest) {
+    const record = input.onCashierRequest;
+    app.use('/v1/staff/*', async (c, next) => {
+      const start = performance.now();
+      await next();
+      record(performance.now() - start, c.res.status);
+    });
+  }
   app.use(async (c, next) => {
     c.set('deps', deps);
     await next();

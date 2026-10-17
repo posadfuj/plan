@@ -15,6 +15,7 @@
     "@aiment/enrollment": "workspace:*",
     "@aiment/ledger": "workspace:*",
     "@aiment/mail": "workspace:*",
+    "@aiment/ops": "workspace:*",
     "@aiment/staff": "workspace:*",
     "@aiment/storage": "workspace:*",
     "@aiment/wallet": "workspace:*",

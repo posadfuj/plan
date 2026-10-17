@@ -2,7 +2,18 @@ import { PgBoss } from 'pg-boss';
 import { safeError } from '@aiment/config';
 import type { Db } from '@aiment/db';
 import { WalletProviderError, type WalletProvider, type WalletProviderName } from '@aiment/wallet';
+import type { Alerter } from '@aiment/ops';
 import { EXPIRATION_CRON, EXPIRATION_QUEUE, runScheduledExpirations } from './expirations';
+import {
+  CLEANUP_CRON,
+  CLEANUP_QUEUE,
+  cleanupTemporaryData,
+  DEFAULT_THRESHOLDS,
+  HEALTH_CRON,
+  HEALTH_QUEUE,
+  runHealthCheck,
+  type HealthThresholds,
+} from './maintenance';
 import { dispatchOutboxBatch, WALLET_QUEUES, type WalletSyncJob } from './outbox';
 import {
   notifyMembershipPasses,
@@ -25,6 +36,9 @@ export interface WorkerOptions {
   autoDispatch?: boolean;
   /** false = no programa los vencimientos diarios (los tests los ejecutan a mano). */
   scheduleExpirations?: boolean;
+  /** Avisos de operación (base, servidor, atrasos de Wallet). Sin él no se programa el control. */
+  alerter?: Alerter;
+  thresholds?: HealthThresholds;
   log?: (msg: string) => void;
 }
 
@@ -53,6 +67,8 @@ export async function startWorker(opts: WorkerOptions) {
   for (const [name, providers] of byName) {
     const queue = WALLET_QUEUES[name];
     await boss.createQueue(queue, {
+      // Trabajos terminados: 3 días alcanzan para revisar un incidente (la base gratis es chica).
+      deleteAfterSeconds: 3 * 86_400,
       retryLimit: retry.limit,
       retryDelay: retry.delaySeconds,
       retryBackoff: retry.backoff,
@@ -135,6 +151,29 @@ export async function startWorker(opts: WorkerOptions) {
         `[vencimientos] ${r.organizations} negocio(s): ${r.expiredRewards} premio(s) y ${r.expiredMemberships} saldo(s) vencidos${r.failed ? `, ${r.failed} con error` : ''}`,
       );
   });
+
+  // Mantenimiento: limpieza diaria de datos temporales y control cada 15 minutos.
+  await boss.createQueue(CLEANUP_QUEUE, { retryLimit: 2, retryDelay: 600, deleteAfterSeconds: 3 * 86_400 });
+  await boss.work(CLEANUP_QUEUE, async () => {
+    const r = await cleanupTemporaryData(opts.db);
+    log(
+      `[limpieza] eventos ${r.outboxEvents} · turnos ${r.staffSessions} · vinculaciones ${r.devicePairings} · recuperaciones ${r.recoveryTokens}`,
+    );
+  });
+  if (opts.alerter) {
+    const alerter = opts.alerter;
+    await boss.createQueue(HEALTH_QUEUE, { retryLimit: 0, deleteAfterSeconds: 86_400 });
+    await boss.work(HEALTH_QUEUE, async () => {
+      const s = await runHealthCheck(opts.db, alerter, opts.thresholds ?? DEFAULT_THRESHOLDS);
+      log(
+        `[salud] base ${s.dbSizeMb} MB · RAM ${s.host.memUsedPct}% · disco ${s.host.diskUsedPct}% · carga ${s.host.loadPerCore}/núcleo · outbox ${s.outboxLagMinutes} min · Wallet con error ${s.walletErrors}`,
+      );
+    });
+  }
+  if (opts.scheduleExpirations !== false) {
+    await boss.schedule(CLEANUP_QUEUE, CLEANUP_CRON);
+    if (opts.alerter) await boss.schedule(HEALTH_QUEUE, HEALTH_CRON);
+  }
 
   let running = true;
   let busy = false;

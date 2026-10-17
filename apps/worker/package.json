@@ -11,6 +11,8 @@
     "@aiment/config": "workspace:*",
     "@aiment/db": "workspace:*",
     "@aiment/ledger": "workspace:*",
+    "@aiment/mail": "workspace:*",
+    "@aiment/ops": "workspace:*",
     "@aiment/wallet": "workspace:*",
     "drizzle-orm": "^0.45.3",
     "pg-boss": "^12.35.0",
