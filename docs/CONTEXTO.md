@@ -48,6 +48,8 @@
 - **Semana 7, bloque 1:** prueba real en Android cuando el fundador pase el Issuer ID, la cuenta de servicio y los correos de prueba (el dominio no hace falta: alcanza el túnel temporal).
 - **Decididos por el fundador:** #12 shadcn/ui cerrada (no migrar si no hay mejora visible); #22 invitar admins → fase posterior, fuera del MVP; #23 editar cliente → hecha.
 - **Semana 7, bloque 2:** aprobado en simulado (deuda #4 cerrada); falta verlo en la prueba real.
+- **Salida a producción (aprobada 17/10/2026, costo fijo mínimo):** VPS Hostinger KVM 2 con EasyPanel (ya corre n8n) para API y worker en contenedores separados; Railway solo como plan B si las métricas reales lo justifican. Cloudflare Free (DNS, web, redirector, R2), Supabase Free (+ staging en el 2.º proyecto gratis; aviso a 300 MB, Pro antes de 400 MB), respaldos cifrados cada 6 h a R2 con prueba semanal de restauración, Resend Free, Google y Apple Wallet reales. Evaluar Cloudflare Tunnel para la entrada al VPS. Supabase en la región del VPS.
+- **Pendiente legal formal:** cumplimiento de la transferencia internacional de datos personales (Ley 29733 y su reglamento): los datos quedan fuera de Perú (Supabase, VPS). No basta con un aviso: hay que resolverlo formalmente antes del piloto con negocios reales.
 - **Fundador:**
   - si se consigue, repetir en un Android de gama baja real (C6, C13, P8): no se pudo en la prueba física;
   - **comprar el dominio** cuando haga falta para URLs públicas fijas (se le avisa; no bloquea el bloque 1);

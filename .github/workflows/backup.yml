@@ -1,0 +1,51 @@
+# Respaldo cifrado de la base cada 6 horas hacia Cloudflare R2 (fuera del VPS: si el servidor se
+# cae, los respaldos siguen). Procedimiento y restauración: docs/runbook.md, sección 5.
+name: Respaldo de la base
+
+on:
+  schedule:
+    - cron: '17 */6 * * *' # 00:17, 06:17, 12:17 y 18:17 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Respaldo cifrado → R2
+    # No corre hasta que R2 esté configurado (variables del repositorio).
+    if: vars.BACKUP_R2_BUCKET != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production-backup
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cliente de Postgres 17 y age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17 age
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Respaldo
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+          BACKUP_DEST: s3://${{ vars.BACKUP_R2_BUCKET }}
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: scripts/backup/backup.sh
+      - name: Aviso si falló
+        if: failure()
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+        run: |
+          [ -n "$ALERT_WEBHOOK_URL" ] || exit 0
+          curl -fsS -m 10 -X POST "$ALERT_WEBHOOK_URL" -H 'content-type: application/json' \
+            -d "{\"key\":\"backup\",\"level\":\"critical\",\"source\":\"github\",\"text\":\"[Aiment Wallet] CRÍTICO: falló el respaldo de la base (run ${GITHUB_RUN_ID})\"}"

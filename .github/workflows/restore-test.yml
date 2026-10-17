@@ -1,0 +1,68 @@
+# Prueba semanal de restauración: baja el último respaldo, lo descifra, lo restaura en un Postgres
+# vacío y verifica saldos, migraciones, RLS y permisos. Si falla, avisa.
+# La clave privada vive solo en el entorno protegido "restore-test" (nunca junto a los respaldos).
+name: Prueba de restauración
+
+on:
+  schedule:
+    - cron: '40 9 * * 1' # lunes 09:40 UTC (04:40 en Lima)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  restore:
+    name: Restaurar el último respaldo y verificar
+    # No corre hasta que R2 esté configurado (variables del repositorio).
+    if: vars.BACKUP_R2_BUCKET != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: restore-test
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: restore-test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cliente de Postgres 17 y age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17 age
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Bajar el último respaldo
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          ENDPOINT: https://${{ vars.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          BUCKET: ${{ vars.BACKUP_R2_BUCKET }}
+        run: |
+          latest=$(aws s3 ls "s3://$BUCKET/6h/" --endpoint-url "$ENDPOINT" | awk '{print $4}' | sort | tail -1)
+          [ -n "$latest" ] || { echo "✖ No hay respaldos en 6h/"; exit 1; }
+          aws s3 cp "s3://$BUCKET/6h/$latest" backup.tar.age --endpoint-url "$ENDPOINT" --only-show-errors
+          # Un respaldo de más de 12 horas indica que el respaldo automático dejó de correr.
+          age_h=$(( ( $(date -u +%s) - $(date -u -d "$(echo "$latest" | sed -E 's/aiment-([0-9-]+)T([0-9]{2})([0-9]{2})Z.*/\1 \2:\3/')" +%s) ) / 3600 ))
+          echo "Último respaldo: $latest (hace ${age_h} h)"
+          [ "$age_h" -le 12 ] || { echo "✖ El último respaldo tiene ${age_h} horas"; exit 1; }
+      - name: Restaurar y verificar
+        env:
+          AGE_IDENTITY: ${{ secrets.BACKUP_AGE_IDENTITY }}
+        run: |
+          umask 077 && printf '%s\n' "$AGE_IDENTITY" > "$RUNNER_TEMP/age.key"
+          scripts/backup/restore.sh backup.tar.age "$RUNNER_TEMP/age.key" postgresql://postgres:restore-test@localhost:5432/postgres
+          rm -f "$RUNNER_TEMP/age.key" backup.tar.age
+      - name: Aviso si falló
+        if: failure()
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+        run: |
+          [ -n "$ALERT_WEBHOOK_URL" ] || exit 0
+          curl -fsS -m 10 -X POST "$ALERT_WEBHOOK_URL" -H 'content-type: application/json' \
+            -d "{\"key\":\"restore-test\",\"level\":\"critical\",\"source\":\"github\",\"text\":\"[Aiment Wallet] CRÍTICO: falló la prueba de restauración del respaldo (run ${GITHUB_RUN_ID})\"}"

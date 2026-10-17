@@ -1,0 +1,22 @@
+{
+  "Rules": [
+    {
+      "ID": "respaldos-6h-7-dias",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "6h/" },
+      "Expiration": { "Days": 7 }
+    },
+    {
+      "ID": "respaldos-diarios-30-dias",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "daily/" },
+      "Expiration": { "Days": 30 }
+    },
+    {
+      "ID": "respaldos-mensuales-365-dias",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "monthly/" },
+      "Expiration": { "Days": 365 }
+    }
+  ]
+}
