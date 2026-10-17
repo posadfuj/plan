@@ -49,9 +49,17 @@ test('registro desde el QR del local hasta la tarjeta web con QR individual', as
   await expect(page.getByTestId('next-reward')).toContainText('Corte gratis');
   await expect(page.getByTestId('short-code')).toHaveText(/^[23456789A-Z]{6}$/);
   await expect(page.getByTestId('powered-by')).toContainText('Powered by Aiment Wallet');
-  await expect(page.getByRole('button', { name: /Agregar a Apple Wallet/ })).toBeDisabled();
-  await expect(page.getByRole('button', { name: /Agregar a Google Wallet/ })).toBeDisabled();
-  await expect(page.getByTestId('wallet-buttons').getByText('Próximamente', { exact: true })).toHaveCount(2);
+  // Google Wallet solo en Android; en iPhone, Apple Wallet (llega en la semana 8).
+  if (test.info().project.name === 'android') {
+    await expect(page.getByTestId('google-wallet-button')).toBeEnabled();
+    await expect(page.getByRole('button', { name: /Apple Wallet/ })).toHaveCount(0);
+  } else {
+    await expect(page.getByRole('button', { name: /Agregar a Apple Wallet/ })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /Google Wallet/ })).toHaveCount(0);
+  }
+  await expect(page.getByTestId('wallet-buttons').getByText('Próximamente', { exact: true })).toHaveCount(
+    test.info().project.name === 'android' ? 0 : 1,
+  );
   await shots(page, '2-tarjeta');
 
   // El QR que ve la caja (leído desde la pantalla, como una cámara)
@@ -86,6 +94,32 @@ test('registro desde el QR del local hasta la tarjeta web con QR individual', as
   await expect(page.getByText('Ya tienes una tarjeta en este negocio.')).toBeVisible();
   await page.getByRole('link', { name: 'Abrir mi tarjeta' }).click();
   await expect(page).toHaveURL(cardUrl);
+});
+
+test('Android: guardar en Google Wallet (simulado) muestra el pase con la marca, el saldo y el QR de caja', async ({
+  page,
+}) => {
+  test.skip(test.info().project.name !== 'android', 'Google Wallet solo se ofrece en Android');
+  const phone = randomPhone();
+  await register(page, { name: 'Gabriela Ríos', phone });
+  await page.getByRole('button', { name: 'Crear mi tarjeta' }).click();
+  await expect(page).toHaveURL(/\/m\/[0-9A-Za-z]{22}$/);
+  const cardQr = await decodeQr(page.getByTestId('qr'));
+
+  await page.getByTestId('google-wallet-button').click();
+  // El pase viaja en el fragmento (#…): no llega a ningún servidor ni queda en logs.
+  await expect(page).toHaveURL(/\/wallet\/google-simulado#ey[\w-]+\.[\w-]+\.[\w-]+$/);
+  await expect(page.getByTestId('sim-banner')).toContainText('Google Wallet simulado');
+  await expect(page.getByTestId('sim-issuer')).toHaveText('Barbería Pedro');
+  await expect(page.getByTestId('sim-account')).toHaveText('Gabriela R.');
+  await expect(page.getByTestId('sim-balance')).toHaveText('0');
+  await expect(page.getByTestId('sim-details')).toContainText('0 de 10 sellos');
+  // Mismo token de caja que la tarjeta web (el origen sale de PUBLIC_BASE_URL; en local puede ser otro puerto).
+  expect(new URL(await decodeQr(page.getByTestId('qr'))).pathname).toBe(new URL(cardQr).pathname);
+  await shots(page, '2b-google-wallet-simulado');
+
+  await page.getByRole('button', { name: 'Volver a mi tarjeta' }).click();
+  await expect(page.getByTestId('customer-name')).toHaveText('Gabriela Ríos');
 });
 
 test('el mismo celular en otro dispositivo no crea una segunda tarjeta', async ({ page, browser }) => {

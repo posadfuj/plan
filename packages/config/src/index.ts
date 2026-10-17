@@ -43,27 +43,45 @@ export const authEnvSchema = z.object({
   AUTH_REQUIRE_SUPERADMIN_MFA: bool,
 });
 
-export const apiEnvSchema = dbEnvSchema.extend(authEnvSchema.shape).extend({
-  API_PORT: z.coerce.number().int().default(8787),
-  PUBLIC_BASE_URL: z.string().url().default('http://localhost:5173'),
-  /** true solo detrás de un proxy o túnel de confianza (Vite dev, Cloudflare). */
-  TRUST_PROXY: bool,
-  VISITOR_HASH_SALT: z.string().min(16).optional(),
-  /** Cookies de caja con Secure. Vacío = automático (true si PUBLIC_BASE_URL es https). */
-  SECURE_COOKIES: z
-    .enum(['true', 'false'])
+/**
+ * Google Wallet (ver packages/wallet/src/google/config.ts):
+ * auto = real si hay Issuer ID + cuenta de servicio y PUBLIC_BASE_URL es https; si no, simulado.
+ */
+export const walletEnvSchema = z.object({
+  GOOGLE_WALLET_MODE: z.enum(['auto', 'off', 'simulated', 'live']).default('auto'),
+  GOOGLE_WALLET_ISSUER_ID: z
+    .string()
+    .trim()
     .optional()
-    .transform((v) => (v === undefined ? undefined : v === 'true')),
-  /** Límites por IP (ver apps/api/src/rate-limit.ts). Vacíos = valores de producción. */
-  RATE_LIMIT_REGISTER: z.coerce.number().int().positive().optional(),
-  RATE_LIMIT_RECOVERY: z.coerce.number().int().positive().optional(),
-  RATE_LIMIT_REDEEM: z.coerce.number().int().positive().optional(),
-  RATE_LIMIT_DEVICE_PAIR: z.coerce.number().int().positive().optional(),
-  /** Clave secreta de Supabase (solo servidor): invitar dueños desde el panel maestro. */
-  SUPABASE_SECRET_KEY: z.string().optional(),
-  /** Carpeta de archivos (logos) en local. En producción: R2/S3 (semana 9). */
-  STORAGE_DIR: z.string().default('.data/storage'),
+    .transform((v) => v || undefined),
+  GOOGLE_WALLET_SA_JSON_PATH: z.string().trim().default('./secrets/google-wallet-sa.json'),
 });
+export type WalletEnv = z.infer<typeof walletEnvSchema>;
+
+export const apiEnvSchema = dbEnvSchema
+  .extend(authEnvSchema.shape)
+  .extend(walletEnvSchema.shape)
+  .extend({
+    API_PORT: z.coerce.number().int().default(8787),
+    PUBLIC_BASE_URL: z.string().url().default('http://localhost:5173'),
+    /** true solo detrás de un proxy o túnel de confianza (Vite dev, Cloudflare). */
+    TRUST_PROXY: bool,
+    VISITOR_HASH_SALT: z.string().min(16).optional(),
+    /** Cookies de caja con Secure. Vacío = automático (true si PUBLIC_BASE_URL es https). */
+    SECURE_COOKIES: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v === 'true')),
+    /** Límites por IP (ver apps/api/src/rate-limit.ts). Vacíos = valores de producción. */
+    RATE_LIMIT_REGISTER: z.coerce.number().int().positive().optional(),
+    RATE_LIMIT_RECOVERY: z.coerce.number().int().positive().optional(),
+    RATE_LIMIT_REDEEM: z.coerce.number().int().positive().optional(),
+    RATE_LIMIT_DEVICE_PAIR: z.coerce.number().int().positive().optional(),
+    /** Clave secreta de Supabase (solo servidor): invitar dueños desde el panel maestro. */
+    SUPABASE_SECRET_KEY: z.string().optional(),
+    /** Carpeta de archivos (logos) en local. En producción: R2/S3 (semana 9). */
+    STORAGE_DIR: z.string().default('.data/storage'),
+  });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
 

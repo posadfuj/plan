@@ -1,10 +1,10 @@
 import { PgBoss } from 'pg-boss';
 import { safeError } from '@aiment/config';
 import type { Db } from '@aiment/db';
-import type { WalletProvider } from '@aiment/wallet';
+import type { WalletProvider, WalletProviderName } from '@aiment/wallet';
 import { EXPIRATION_CRON, EXPIRATION_QUEUE, runScheduledExpirations } from './expirations';
 import { dispatchOutboxBatch, WALLET_QUEUES, type WalletSyncJob } from './outbox';
-import { syncMembershipPasses } from './wallet-sync';
+import { revokeMembershipPasses, syncMembershipPasses } from './wallet-sync';
 
 export interface WorkerOptions {
   databaseUrl: string;
@@ -36,8 +36,12 @@ export async function startWorker(opts: WorkerOptions) {
   await boss.start();
 
   const retry = opts.retry ?? { limit: 8, delaySeconds: 5, backoff: true };
-  for (const provider of opts.providers) {
-    const queue = WALLET_QUEUES[provider.name];
+  // Una cola por proveedor. Puede haber varios del mismo proveedor (p. ej. dos cuentas emisoras
+  // durante una migración): cada pase lo atiende el que reconoce su issuer_ref.
+  const byName = new Map<WalletProviderName, WalletProvider[]>();
+  for (const p of opts.providers) byName.set(p.name, [...(byName.get(p.name) ?? []), p]);
+  for (const [name, providers] of byName) {
+    const queue = WALLET_QUEUES[name];
     await boss.createQueue(queue, {
       retryLimit: retry.limit,
       retryDelay: retry.delaySeconds,
@@ -49,20 +53,24 @@ export async function startWorker(opts: WorkerOptions) {
       { pollingIntervalSeconds: opts.pollSeconds ?? 1 },
       async ([job]) => {
         if (!job) return;
-        const r = await syncMembershipPasses(
-          opts.db,
-          [provider],
-          job.data.membershipId,
-          opts.publicBaseUrl,
-          provider.name,
-        );
-        if (r.failed.length) {
+        const { membershipId, action } = job.data;
+        const r =
+          action === 'revoke'
+            ? await revokeMembershipPasses(opts.db, providers, membershipId, name)
+            : await syncMembershipPasses(opts.db, providers, membershipId, opts.publicBaseUrl, name);
+        const retryable = r.failed.filter((f) => f.retryable);
+        for (const f of r.failed.filter((x) => !x.retryable))
+          log(`[${queue}] ${membershipId}: ${f.error} (no se reintenta: queda en last_error)`);
+        if (retryable.length) {
           log(
-            `[${queue}] ${job.data.membershipId}: ${r.failed.length} pase(s) con error, se reintentará (intento ${job.retryCount + 1})`,
+            `[${queue}] ${membershipId}: ${retryable.length} pase(s) con error, se reintentará (intento ${job.retryCount + 1})`,
           );
-          throw new Error(r.failed.map((f) => `${f.externalId}: ${f.error}`).join('; '));
+          throw new Error(retryable.map((f) => `${f.externalId}: ${f.error}`).join('; '));
         }
-        log(`[${queue}] ${job.data.membershipId}: ${r.synced} pase(s) sincronizado(s)`);
+        if (r.synced)
+          log(
+            `[${queue}] ${membershipId}: ${r.synced} pase(s) ${action === 'revoke' ? 'cerrado(s)' : 'sincronizado(s)'}`,
+          );
       },
     );
   }

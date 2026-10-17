@@ -243,7 +243,8 @@ describe('Datos de prueba', () => {
     const [r] = await admin`
       select (select count(*) from app.earned_rewards)::int as earned,
              (select count(*) from app.redemptions)::int as redemptions,
-             (select count(distinct organization_id) from app.wallet_passes)::int as orgs_with_passes`;
+             (select count(distinct organization_id) from app.wallet_passes
+               where organization_id in ${admin(Object.values(SEED.orgs).map((o) => o.id))})::int as orgs_with_passes`;
     expect(r!.earned).toBeGreaterThan(0);
     expect(r!.redemptions).toBeGreaterThan(0);
     expect(r!.orgs_with_passes).toBe(3);

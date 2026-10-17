@@ -7,9 +7,10 @@ import { createDb, schema, withSystemTx, type DbHandle } from '@aiment/db';
 import { SEED, seedMembershipId } from '@aiment/db/seed-data';
 import { hashToken } from '@aiment/enrollment';
 import { MemoryMailer } from '@aiment/mail';
+import { createGoogleWallet } from '@aiment/wallet';
 import { randomInt } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
-import { SignJWT } from 'jose';
+import { decodeJwt, SignJWT } from 'jose';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { createApp, type App } from './app';
 import { createSupabaseVerifier } from './auth/verifier';
@@ -590,5 +591,122 @@ describe('panel: enlaces impresos', () => {
     });
     expect(png.headers.get('content-type')).toBe('image/png');
     expect(new Uint8Array(await png.arrayBuffer()).slice(1, 4)).toEqual(new Uint8Array([0x50, 0x4e, 0x47]));
+  });
+});
+
+describe('botón "Agregar a Google Wallet" (Google simulado)', () => {
+  let appG: App;
+  let web: string;
+  let membershipId: string;
+  const objectOf = (url: string) =>
+    (decodeJwt(url.split('#')[1]!) as { payload: { loyaltyObjects: any[]; loyaltyClasses: any[] } }).payload;
+
+  beforeAll(async () => {
+    const google = await createGoogleWallet(
+      {
+        GOOGLE_WALLET_MODE: 'simulated',
+        GOOGLE_WALLET_ISSUER_ID: undefined,
+        GOOGLE_WALLET_SA_JSON_PATH: './no-hace-falta.json',
+      },
+      PUBLIC,
+    );
+    appG = createApp({
+      db: handle.db,
+      verifier: createSupabaseVerifier({ supabaseUrl: SUPABASE_URL, jwtSecret: JWT_SECRET }),
+      config: {
+        requireSuperadminMfa: false,
+        publicBaseUrl: PUBLIC,
+        trustProxy: true,
+        visitorSalt: 'test-salt-0123456789',
+      },
+      mailer,
+      googleWallet: google.provider,
+    });
+    const reg = await req('POST', '/v1/public/register', {
+      body: registration({ fullName: 'Lucía Paredes Soto' }),
+    });
+    web = reg.json.webCardToken;
+    const [m] = await withSystemTx(handle.db, (tx) =>
+      tx
+        .select({ id: schema.memberships.id })
+        .from(schema.memberships)
+        .where(eq(schema.memberships.webCardTokenHash, hashToken(web))),
+    );
+    membershipId = m!.id;
+  });
+
+  it('sin Google configurado, la tarjeta no lo ofrece y el endpoint responde 404', async () => {
+    expect((await req('GET', `/v1/public/cards/${web}`)).json.wallet.google.available).toBe(false);
+    const r = await req('POST', `/v1/public/cards/${web}/wallet/google`);
+    expect([r.status, r.json.error.code]).toEqual([404, 'wallet_unavailable']);
+  });
+
+  it('con Google configurado: enlace al pase con la marca, el saldo y el QR de caja; siempre el mismo pase', async () => {
+    expect((await req('GET', `/v1/public/cards/${web}`, { app: appG })).json.wallet.google.available).toBe(
+      true,
+    );
+    const r1 = await req('POST', `/v1/public/cards/${web}/wallet/google`, { app: appG });
+    expect(r1.status).toBe(200);
+    expect(r1.headers.get('cache-control')).toBe('no-store');
+    expect(r1.json.url.startsWith(`${PUBLIC}/wallet/google-simulado#`)).toBe(true);
+    const p1 = objectOf(r1.json.url);
+    expect(p1.loyaltyClasses[0]).toMatchObject({ issuerName: A.name, programName: expect.any(String) });
+    const [scan] = await withSystemTx(handle.db, (tx) =>
+      tx
+        .select({ t: schema.memberships.memberScanToken })
+        .from(schema.memberships)
+        .where(eq(schema.memberships.id, membershipId)),
+    );
+    expect(p1.loyaltyObjects[0]).toMatchObject({
+      accountName: 'Lucía P.',
+      loyaltyPoints: { balance: { int: 0 } },
+      barcode: { type: 'QR_CODE', value: `${PUBLIC}/s/${scan!.t}` },
+    });
+    expect(r1.text).not.toContain(web); // el token privado de la tarjeta no va dentro del pase
+
+    const r2 = await req('POST', `/v1/public/cards/${web}/wallet/google`, { app: appG });
+    expect(objectOf(r2.json.url).loyaltyObjects[0].id).toBe(p1.loyaltyObjects[0].id);
+    const passes = await withSystemTx(handle.db, (tx) =>
+      tx.select().from(schema.walletPasses).where(eq(schema.walletPasses.membershipId, membershipId)),
+    );
+    expect(passes).toHaveLength(1);
+    expect(passes[0]).toMatchObject({ provider: 'google', status: 'active', organizationId: A.id });
+  });
+
+  it('tokens inválidos o del QR de caja no sirven; tarjeta pausada → 409 y sin botón', async () => {
+    expect((await req('POST', '/v1/public/cards/no-es-un-token/wallet/google', { app: appG })).status).toBe(
+      404,
+    );
+    const [m] = await withSystemTx(handle.db, (tx) =>
+      tx
+        .select({ scan: schema.memberships.memberScanToken })
+        .from(schema.memberships)
+        .where(eq(schema.memberships.id, membershipId)),
+    );
+    expect((await req('POST', `/v1/public/cards/${m!.scan}/wallet/google`, { app: appG })).status).toBe(404);
+
+    const setStatus = (status: 'active' | 'blocked') =>
+      withSystemTx(handle.db, (tx) =>
+        tx.update(schema.memberships).set({ status }).where(eq(schema.memberships.id, membershipId)),
+      );
+    await setStatus('blocked');
+    try {
+      const r = await req('POST', `/v1/public/cards/${web}/wallet/google`, { app: appG });
+      expect([r.status, r.json.error.code]).toEqual([409, 'card_blocked']);
+      expect((await req('GET', `/v1/public/cards/${web}`, { app: appG })).json.wallet.google.available).toBe(
+        false,
+      );
+    } finally {
+      await setStatus('active');
+    }
+  });
+
+  it('límite por tarjeta: 20 enlaces cada 10 minutos (aunque cambie la IP)', async () => {
+    const reg = await req('POST', '/v1/public/register', { body: registration() });
+    const token = reg.json.webCardToken;
+    for (let i = 0; i < 20; i++)
+      expect((await req('POST', `/v1/public/cards/${token}/wallet/google`, { app: appG })).status).toBe(200);
+    const r = await req('POST', `/v1/public/cards/${token}/wallet/google`, { app: appG });
+    expect(r.status).toBe(429);
   });
 });

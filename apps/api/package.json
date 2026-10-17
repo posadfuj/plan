@@ -17,6 +17,7 @@
     "@aiment/mail": "workspace:*",
     "@aiment/staff": "workspace:*",
     "@aiment/storage": "workspace:*",
+    "@aiment/wallet": "workspace:*",
     "@hono/node-server": "^2.1.1",
     "@supabase/supabase-js": "^2.117.2",
     "drizzle-orm": "^0.45.3",

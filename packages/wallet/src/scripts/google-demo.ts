@@ -39,6 +39,7 @@ const { url, classId, objectId } = await buildGoogleSaveUrl({
     membershipId: `demo-${runId}`,
     organizationId: 'demo',
     organizationName: 'Barbería Pedro (demo)',
+    programId: 'demo',
     programName: 'Club Barbería Pedro',
     mode: 'stamps',
     unitLabel: 'sellos',
@@ -49,6 +50,8 @@ const { url, classId, objectId } = await buildGoogleSaveUrl({
     scanUrl: 'https://example.com/s/demo-token-no-real',
     shortCode: 'DEMO01',
     primaryColor: '#1F2937',
+    logoUrl: logoUrl!,
+    status: 'active',
   },
 });
 

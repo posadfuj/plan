@@ -4,6 +4,8 @@
  * dentro del negocio. Las respuestas con datos personales no se cachean.
  */
 import {
+  EnrollmentError,
+  findCardMembershipId,
   getCard,
   getJoinInfo,
   getScanInfo,
@@ -15,6 +17,7 @@ import {
   visitorHash,
 } from '@aiment/enrollment';
 import { normalizePhone } from '@aiment/core';
+import { requestWalletLink } from '@aiment/wallet';
 import { Hono } from 'hono';
 import type { AppEnv } from '../context';
 import { clientIp, jsonBody as json, limit, privateHeaders, TEN_MIN } from '../request';
@@ -77,7 +80,33 @@ export const publicRoutes = new Hono<AppEnv>()
   .get('/cards/:token', async (c) => {
     limit(c, 'publicRead', 60_000);
     privateHeaders(c);
-    return c.json(await getCard(c.var.deps.db, c.req.param('token')));
+    return c.json(
+      await getCard(c.var.deps.db, c.req.param('token'), { googleWallet: !!c.var.deps.googleWallet }),
+    );
+  })
+
+  /**
+   * Enlace "Guardar en Google Wallet" de la tarjeta. Se arma en el servidor (firma con la cuenta
+   * del emisor) sin llamar a Google: funciona aunque la API de Google esté caída.
+   */
+  .post('/cards/:token/wallet/google', async (c) => {
+    limit(c, 'publicRead', 60_000);
+    const token = c.req.param('token');
+    const { db, googleWallet, publicBaseUrl } = c.var.deps;
+    if (!googleWallet)
+      throw new EnrollmentError(404, 'wallet_unavailable', 'Google Wallet todavía no está disponible.');
+    const membershipId = await findCardMembershipId(db, token);
+    limit(c, 'walletLink', TEN_MIN, membershipId);
+    const r = await requestWalletLink(db, googleWallet, membershipId, publicBaseUrl);
+    privateHeaders(c);
+    if (r.status === 'blocked')
+      throw new EnrollmentError(
+        409,
+        'card_blocked',
+        'Tu tarjeta está pausada por el negocio. Consulta en el local.',
+      );
+    if (r.status === 'not_found') throw new EnrollmentError(404, 'not_found', 'No encontramos lo que buscas');
+    return c.json({ url: r.addUrl });
   })
 
   .get('/scan/:token', async (c) => {

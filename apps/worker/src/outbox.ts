@@ -1,6 +1,6 @@
 import { schema, withSystemTx, type Db } from '@aiment/db';
 import type { WalletProviderName } from '@aiment/wallet';
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, inArray, isNull, sql } from 'drizzle-orm';
 
 /** Eventos que cambian lo que se ve en un pase y disparan una sincronización de Wallet. */
 export const WALLET_EVENTS = new Set([
@@ -11,6 +11,8 @@ export const WALLET_EVENTS = new Set([
   'membership.updated',
   'wallet.resync_requested',
 ]);
+/** Cliente eliminado: sus pases se cierran en el Wallet (sin nombre ni QR). */
+export const WALLET_REVOKE_EVENTS = new Set(['membership.closed']);
 
 /**
  * Una cola por proveedor: si Google falla, se reintenta solo Google; Apple no repite trabajo
@@ -26,6 +28,8 @@ export interface WalletSyncJob {
   organizationId: string;
   provider: WalletProviderName;
   eventId: number;
+  /** sync (por defecto) = enviar el estado actual · revoke = cerrar los pases revocados. */
+  action?: 'sync' | 'revoke';
 }
 
 export type Enqueue = (queue: string, data: WalletSyncJob, key: string) => Promise<unknown>;
@@ -47,27 +51,31 @@ export async function dispatchOutboxBatch(db: Db, enqueue: Enqueue, limit = 100)
       .for('update', { skipLocked: true });
     if (!events.length) return 0;
 
-    const walletEvents = events.filter((e) => WALLET_EVENTS.has(e.type));
+    const walletEvents = events.filter((e) => WALLET_EVENTS.has(e.type) || WALLET_REVOKE_EVENTS.has(e.type));
     const membershipIds = [...new Set(walletEvents.map((e) => e.aggregateId))];
     const passes = membershipIds.length
       ? await tx
           .selectDistinct({
             membershipId: schema.walletPasses.membershipId,
             provider: schema.walletPasses.provider,
+            status: schema.walletPasses.status,
           })
           .from(schema.walletPasses)
           .where(
             and(
               inArray(schema.walletPasses.membershipId, membershipIds),
-              eq(schema.walletPasses.status, 'active'),
+              inArray(schema.walletPasses.status, ['active', 'revoked']),
             ),
           )
       : [];
 
     const queued = new Set<string>();
     for (const e of walletEvents) {
-      for (const p of passes.filter((x) => x.membershipId === e.aggregateId)) {
-        const jobKey = `${p.provider}:${e.aggregateId}`;
+      const action = WALLET_REVOKE_EVENTS.has(e.type) ? 'revoke' : 'sync';
+      const wanted = action === 'revoke' ? 'revoked' : 'active';
+      for (const p of passes.filter((x) => x.membershipId === e.aggregateId && x.status === wanted)) {
+        const jobKey =
+          action === 'revoke' ? `${p.provider}:revoke:${e.aggregateId}` : `${p.provider}:${e.aggregateId}`;
         if (queued.has(jobKey)) continue;
         queued.add(jobKey);
         await enqueue(
@@ -77,6 +85,7 @@ export async function dispatchOutboxBatch(db: Db, enqueue: Enqueue, limit = 100)
             organizationId: e.organizationId,
             provider: p.provider,
             eventId: e.id,
+            ...(action === 'revoke' ? { action } : {}),
           },
           jobKey,
         );

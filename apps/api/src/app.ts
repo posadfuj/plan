@@ -40,6 +40,7 @@ export function createApp(input: AppDeps) {
     mailer: input.mailer ?? new MemoryMailer(),
     storage: input.storage ?? new MemoryStorage(),
     authAdmin: input.authAdmin ?? null,
+    googleWallet: input.googleWallet ?? null,
     publicBaseUrl: input.config.publicBaseUrl ?? 'http://localhost:5173',
     limiter: new RateLimiter(),
   };

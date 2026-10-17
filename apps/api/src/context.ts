@@ -3,6 +3,7 @@ import type { Db } from '@aiment/db';
 import type { AuthAdmin } from '@aiment/business';
 import type { Mailer } from '@aiment/mail';
 import type { ObjectStorage } from '@aiment/storage';
+import type { WalletProvider } from '@aiment/wallet';
 import type { DeviceContext, ShiftContext } from '@aiment/staff';
 import type { AuthClaims, TokenVerifier } from './auth/verifier';
 import type { RateLimiter, RateLimits } from './rate-limit';
@@ -32,6 +33,8 @@ export interface AppDeps {
   storage?: ObjectStorage;
   /** Invitaciones de dueños (Supabase Auth admin). null = no configurado (sin SUPABASE_SECRET_KEY). */
   authAdmin?: AuthAdmin | null;
+  /** Google Wallet (real o simulado, ver @aiment/wallet createGoogleWallet). null/ausente = sin botón. */
+  googleWallet?: WalletProvider | null;
 }
 
 /** Dependencias ya resueltas con valores por defecto (las usan las rutas). */
@@ -39,6 +42,7 @@ export interface ResolvedDeps extends AppDeps {
   mailer: Mailer;
   storage: ObjectStorage;
   authAdmin: AuthAdmin | null;
+  googleWallet: WalletProvider | null;
   publicBaseUrl: string;
   limiter: RateLimiter;
 }

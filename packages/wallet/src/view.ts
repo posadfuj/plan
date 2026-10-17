@@ -1,6 +1,7 @@
+import { publicFilePath, readBranding } from '@aiment/core';
 import { schema, type Tx } from '@aiment/db';
-import type { MembershipView } from '@aiment/wallet';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import type { MembershipView } from './types';
 
 const { memberships, customers, loyaltyPrograms, organizations, programRuleVersions } = schema;
 
@@ -11,6 +12,10 @@ export function displayName(fullName: string | null): string {
   return rest.length ? `${first} ${rest[0]![0]}.` : first!;
 }
 
+/** Google Wallet solo acepta PNG y JPG: un logo WebP usa el logo por defecto. */
+const WALLET_LOGO = /\.(png|jpe?g)$/i;
+
+/** Lo que muestra un pase. null si la membresía no existe o está cerrada. */
 export async function loadMembershipView(
   tx: Tx,
   membershipId: string,
@@ -22,11 +27,13 @@ export async function loadMembershipView(
       organizationId: memberships.organizationId,
       organizationName: organizations.name,
       branding: organizations.branding,
+      programId: loyaltyPrograms.id,
       programName: loyaltyPrograms.name,
       mode: loyaltyPrograms.mode,
       unitLabel: loyaltyPrograms.unitLabel,
       goal: programRuleVersions.goal,
       balance: memberships.balance,
+      status: memberships.status,
       shortCode: memberships.shortCode,
       scanToken: memberships.memberScanToken,
       fullName: customers.fullName,
@@ -37,13 +44,15 @@ export async function loadMembershipView(
     .innerJoin(loyaltyPrograms, eq(loyaltyPrograms.id, memberships.programId))
     .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
     .leftJoin(programRuleVersions, eq(programRuleVersions.id, loyaltyPrograms.currentVersionId))
-    .where(and(eq(memberships.id, membershipId)));
+    .where(and(eq(memberships.id, membershipId), inArray(memberships.status, ['active', 'blocked'])));
   if (!row) return null;
-  const branding = (row.branding ?? {}) as { primaryColor?: string };
+  const branding = readBranding(row.branding);
+  const base = publicBaseUrl.replace(/\/$/, '');
   return {
     membershipId: row.membershipId,
     organizationId: row.organizationId,
     organizationName: row.organizationName,
+    programId: row.programId,
     programName: row.programName,
     mode: row.mode,
     unitLabel: row.unitLabel,
@@ -51,8 +60,13 @@ export async function loadMembershipView(
     goal: row.mode === 'stamps' ? row.goal : null,
     availableRewards: row.availableRewards,
     customerDisplayName: displayName(row.fullName),
-    scanUrl: `${publicBaseUrl.replace(/\/$/, '')}/s/${row.scanToken}`,
+    scanUrl: `${base}/s/${row.scanToken}`,
     shortCode: row.shortCode,
-    primaryColor: branding.primaryColor ?? null,
+    primaryColor: branding.primaryColor,
+    logoUrl:
+      branding.logoKey && WALLET_LOGO.test(branding.logoKey)
+        ? `${base}${publicFilePath(branding.logoKey)}`
+        : null,
+    status: row.status as 'active' | 'blocked',
   };
 }

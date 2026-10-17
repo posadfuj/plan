@@ -14,6 +14,7 @@ import { JoinPage } from './routes/join';
 import { ErrorPage, HomePage, UnavailablePage } from './routes/misc';
 import { RecoverPage, RedeemPage } from './routes/recovery';
 import { ScanPage } from './routes/scan';
+import { GoogleWalletSimPage } from './routes/wallet-sim';
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -27,6 +28,11 @@ const routeTree = rootRoute.addChildren([
   createRoute({ getParentRoute: () => rootRoute, path: '/s/$token', component: ScanPage }),
   createRoute({ getParentRoute: () => rootRoute, path: '/recuperar/$code', component: RecoverPage }),
   createRoute({ getParentRoute: () => rootRoute, path: '/r/$token', component: RedeemPage }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/wallet/google-simulado',
+    component: GoogleWalletSimPage,
+  }),
   // El panel (y el cliente de Supabase Auth) se descarga solo al abrirlo: la tarjeta del cliente queda liviana.
   createRoute({
     getParentRoute: () => rootRoute,

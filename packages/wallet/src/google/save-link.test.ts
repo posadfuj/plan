@@ -7,6 +7,7 @@ const view: MembershipView = {
   membershipId: 'm1',
   organizationId: 'o1',
   organizationName: 'Barbería Pedro',
+  programId: 'p1',
   programName: 'Club Barbería Pedro',
   mode: 'stamps',
   unitLabel: 'sellos',
@@ -17,6 +18,8 @@ const view: MembershipView = {
   scanUrl: 'http://localhost:5173/s/abc',
   shortCode: 'K7Q2MZ',
   primaryColor: '#1F2937',
+  logoUrl: null,
+  status: 'active',
 };
 
 describe('enlace Guardar en Google Wallet', () => {

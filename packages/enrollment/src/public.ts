@@ -430,7 +430,7 @@ export async function registerCustomer(
 // ---------------------------------------------------------------------------
 // Tarjeta web (/m/:webCardToken)
 // ---------------------------------------------------------------------------
-export async function getCard(db: Db, webCardToken: string) {
+export async function getCard(db: Db, webCardToken: string, opts: { googleWallet?: boolean } = {}) {
   if (!isToken(webCardToken)) throw notFound();
   return withSystemTx(db, async (tx) => {
     const [row] = await tx
@@ -571,9 +571,38 @@ export async function getCard(db: Db, webCardToken: string) {
       scanPath: `/s/${row.scanToken}`,
       shortCode: row.shortCode,
       history,
-      wallet: { apple: { available: false }, google: { available: false } },
+      // Google: disponible si está configurado (real o simulado) y la tarjeta no está pausada. Apple: semana 8.
+      wallet: {
+        apple: { available: false },
+        google: { available: !!opts.googleWallet && row.status === 'active' },
+      },
     };
   });
+}
+
+/**
+ * Membresía de una tarjeta web (para pedir el pase de Wallet). Mismas condiciones que la tarjeta:
+ * un token viejo, un cliente eliminado o un negocio no publicado dan 404.
+ */
+export async function findCardMembershipId(db: Db, webCardToken: string): Promise<string> {
+  if (!isToken(webCardToken)) throw notFound();
+  const [row] = await withSystemTx(db, (tx) =>
+    tx
+      .select({ id: memberships.id })
+      .from(memberships)
+      .innerJoin(customers, eq(customers.id, memberships.customerId))
+      .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
+      .where(
+        and(
+          eq(memberships.webCardTokenHash, hashToken(webCardToken)),
+          inArray(memberships.status, ['active', 'blocked']),
+          eq(customers.status, 'active'),
+          eq(organizations.status, 'live'),
+        ),
+      ),
+  );
+  if (!row) throw notFound();
+  return row.id;
 }
 
 // ---------------------------------------------------------------------------

@@ -36,6 +36,8 @@ export interface RateLimits {
   staffOverrideOrg: number;
   /** Exportaciones CSV por persona del panel cada hora (descargan datos de todos los clientes). */
   export: number;
+  /** Enlaces "Agregar a Wallet" por tarjeta cada 10 minutos (cada uno firma un JWT). */
+  walletLink: number;
 }
 
 export const DEFAULT_RATE_LIMITS: RateLimits = {
@@ -51,6 +53,7 @@ export const DEFAULT_RATE_LIMITS: RateLimits = {
   staffOverride: 10,
   staffOverrideOrg: 20,
   export: 20,
+  walletLink: 20,
 };
 
 export class RateLimiter {

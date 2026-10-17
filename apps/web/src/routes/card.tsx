@@ -47,5 +47,5 @@ export function CardPage() {
     );
   if (!card) return <Spinner />;
 
-  return <CardView card={card} scanUrl={`${window.location.origin}${card.scanPath}`} />;
+  return <CardView card={card} token={token} scanUrl={`${window.location.origin}${card.scanPath}`} />;
 }

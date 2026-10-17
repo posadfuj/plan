@@ -42,9 +42,10 @@ export class FakeWalletProvider implements WalletProvider {
     }
   }
 
-  async issue(view: MembershipView): Promise<IssueResult> {
+  async issue(view: MembershipView, existing?: string): Promise<IssueResult> {
     this.maybeFail('issue');
-    const externalId = this.name === 'google' ? `fake.${view.membershipId}` : `fake-${view.membershipId}`;
+    const externalId =
+      existing ?? (this.name === 'google' ? `fake.${view.membershipId}` : `fake-${view.membershipId}`);
     this.record({ op: 'issue', membershipId: view.membershipId, externalId, balance: view.balance });
     return { externalId, issuerRef: this.issuerRef, addUrl: `fake://${this.name}/add/${externalId}` };
   }

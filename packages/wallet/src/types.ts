@@ -9,6 +9,8 @@ export interface MembershipView {
   membershipId: string;
   organizationId: string;
   organizationName: string;
+  /** Una clase de Google por programa: su id se deriva de este. */
+  programId: string;
   programName: string;
   mode: 'stamps' | 'points';
   unitLabel: string;
@@ -21,6 +23,10 @@ export interface MembershipView {
   scanUrl: string;
   shortCode: string;
   primaryColor: string | null;
+  /** Logo del negocio en URL absoluta PNG/JPG (Google la descarga), o null si no hay uno compatible. */
+  logoUrl: string | null;
+  /** blocked: el negocio pausó la tarjeta; el pase se muestra sin QR. */
+  status: 'active' | 'blocked';
 }
 
 export interface WalletPassRef {
@@ -44,8 +50,13 @@ export interface WalletProvider {
   readonly issuerRef: string;
   /** ¿Puede actualizar pases emitidos con esta cuenta? Permite convivir cuentas durante una migración. */
   handles(issuerRef: string): boolean;
-  issue(view: MembershipView): Promise<IssueResult>;
+  /**
+   * Prepara el pase y devuelve el enlace para agregarlo. Con `externalId` reutiliza un pase ya
+   * emitido (el enlace se regenera con el estado actual).
+   */
+  issue(view: MembershipView, externalId?: string): Promise<IssueResult>;
   update(view: MembershipView, pass: WalletPassRef): Promise<void>;
+  /** Cliente eliminado: el pase queda inactivo y sin datos personales. Idempotente. */
   revoke(pass: WalletPassRef): Promise<void>;
 }
 

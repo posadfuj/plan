@@ -2,7 +2,8 @@
  * Tarjeta web del cliente. La usan la página /m/{token} y la vista previa del panel del dueño
  * (así lo que el dueño ve al configurar es exactamente lo que verá su cliente).
  */
-import type { Card } from '../api';
+import { useState } from 'react';
+import { api, type ApiError, type Card } from '../api';
 import { Alert, BrandHeader, Page, PoweredBy, QrImage } from './ui';
 
 const LABELS: Record<string, string> = {
@@ -44,6 +45,97 @@ function WalletSoon({ label, className }: { label: string; className: string }) 
   );
 }
 
+/**
+ * "Agregar a Google Wallet": pide el enlace al servidor y abre la página de Google (o la vista
+ * simulada en local). La tarjeta web sigue funcionando igual si esto falla.
+ */
+function GoogleWalletButton({ token }: { token: string | null }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const add = async () => {
+    if (!token) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { url } = await api<{ url: string }>(
+        `/v1/public/cards/${encodeURIComponent(token)}/wallet/google`,
+        { method: 'POST' },
+      );
+      window.location.assign(url);
+    } catch (e) {
+      setError((e as ApiError).message);
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void add()}
+        disabled={busy || !token}
+        aria-busy={busy}
+        className="flex min-h-14 flex-col items-center justify-center rounded-xl bg-black px-3 text-white active:scale-[.99] disabled:opacity-60"
+        data-testid="google-wallet-button"
+      >
+        <span className="text-sm font-semibold">{busy ? 'Abriendo…' : 'Agregar a Google Wallet'}</span>
+      </button>
+      {error && (
+        <div className="col-span-full">
+          <Alert tone="error">{error}</Alert>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Qué Wallet tiene el celular: Google solo en Android, Apple solo en iPhone/iPad. */
+export function walletPlatform(nav: Pick<Navigator, 'userAgent' | 'maxTouchPoints'> = navigator) {
+  if (/Android/i.test(nav.userAgent)) return 'android' as const;
+  // iPadOS se presenta como Mac: se reconoce por la pantalla táctil.
+  if (/iPhone|iPad|iPod/i.test(nav.userAgent) || (/Macintosh/.test(nav.userAgent) && nav.maxTouchPoints > 1))
+    return 'ios' as const;
+  return 'other' as const;
+}
+
+/**
+ * Botones de Wallet según el celular. 'all' = vista previa del panel: el dueño ve los dos.
+ * La tarjeta web funciona siempre, con o sin Wallet.
+ */
+function WalletButtons({
+  platform,
+  google,
+  token,
+}: {
+  platform: 'android' | 'ios' | 'other' | 'all';
+  google: boolean;
+  token: string | null;
+}) {
+  const showApple = platform === 'ios' || platform === 'all';
+  const showGoogle = platform === 'android' || platform === 'all';
+  const note =
+    platform === 'other'
+      ? 'Abre esta tarjeta en tu celular para guardarla en tu Wallet. Esta tarjeta web funciona siempre.'
+      : platform === 'android' && google
+        ? 'Guárdala en Google Wallet: se actualiza sola. Esta tarjeta web funciona siempre.'
+        : 'Muy pronto podrás guardarla en tu Wallet. Esta tarjeta web funciona siempre.';
+  return (
+    <section
+      className={`mt-4 grid gap-3 ${showApple && showGoogle ? 'grid-cols-2' : 'grid-cols-1'}`}
+      data-testid="wallet-buttons"
+      data-platform={platform}
+    >
+      {showApple && <WalletSoon label="Apple Wallet" className="bg-black" />}
+      {showGoogle &&
+        (google ? (
+          <GoogleWalletButton token={token} />
+        ) : (
+          <WalletSoon label="Google Wallet" className="bg-gray-800" />
+        ))}
+      <p className="col-span-full -mt-1 text-center text-xs text-gray-500">{note}</p>
+    </section>
+  );
+}
+
 function Contact({ contact }: { contact: Card['organization']['branding']['contact'] }) {
   const items = [
     contact.phone && { label: contact.phone, href: `tel:${contact.phone.replace(/[^+0-9]/g, '')}` },
@@ -72,11 +164,15 @@ export function CardView({
   card,
   scanUrl,
   preview = false,
+  token = null,
 }: {
   card: Card;
   scanUrl: string;
   preview?: boolean;
+  /** Token de la tarjeta (para pedir el pase de Wallet). La vista previa del panel no lo tiene. */
+  token?: string | null;
 }) {
+  const google = card.wallet.google.available;
   const { branding } = card.organization;
   const isStamps = card.program.mode === 'stamps';
   const Wrapper = preview ? PreviewFrame : Page;
@@ -171,13 +267,11 @@ export function CardView({
         </section>
       )}
 
-      <section className="mt-4 grid grid-cols-2 gap-3" data-testid="wallet-buttons">
-        <WalletSoon label="Apple Wallet" className="bg-black" />
-        <WalletSoon label="Google Wallet" className="bg-gray-800" />
-        <p className="col-span-2 -mt-1 text-center text-xs text-gray-500">
-          Muy pronto podrás guardarla en tu Wallet. Esta tarjeta web funciona siempre.
-        </p>
-      </section>
+      <WalletButtons
+        platform={preview ? 'all' : walletPlatform()}
+        google={google}
+        token={preview ? null : token}
+      />
 
       {card.history.length > 0 && (
         <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm">
