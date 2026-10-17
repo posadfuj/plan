@@ -135,5 +135,7 @@ Respaldo de 310 KB en 0,2 s y restauración en una base nueva del mismo servidor
   select external_id, last_error, last_synced_at from app.wallet_passes
   where provider = 'google' and last_error is not null order by updated_at desc limit 20;
   ```
+- **Cambios del dueño (bloque 2):** nombre, color o logo (`organization.branding_updated`) y nombre, unidad, regla o meta del programa (`program.updated`) actualizan la clase de Google y reenvían cada pase activo del programa (un job por pase, con debounce). Con muchos pases, el reenvío tarda unos minutos.
+- **Mensajes automáticos:** el pase muestra el mismo mensaje vigente que la tarjeta web. "Meta cumplida" llega además como notificación al celular, una sola vez por mensaje (Google limita a 3 notificaciones por pase cada 24 h).
 - **Reenviar un pase:** insertar un evento `wallet.resync_requested` para la membresía (el worker manda el estado actual).
 - **Baja de un cliente:** sus pases pasan a `revoked` y el worker los deja inactivos en Google, sin nombre ni QR.
