@@ -89,12 +89,15 @@ describe('Wallet simulado: una cola por proveedor', () => {
         .from(schema.memberships)
         .where(eq(schema.memberships.id, both)),
     );
+    // Otras suites pueden haber sincronizado antes estos pases: se compara contra la versión previa.
+    const before = new Map((await passes(both)).map((p) => [p.provider, p.version]));
     await emit('ledger.created', both);
     await worker.tick();
     await waitFor(() => callsFor(google, both) === 1 && callsFor(apple, both) === 1);
     expect(google.calls.at(-1)).toMatchObject({ op: 'update', membershipId: both, balance: m!.balance });
-    await waitFor(async () => (await passes(both)).every((p) => p.lastSyncedAt !== null));
-    expect((await passes(both)).every((p) => p.version === 2 && p.lastError === null)).toBe(true);
+    await waitFor(async () =>
+      (await passes(both)).every((p) => p.version === before.get(p.provider)! + 1 && p.lastError === null),
+    );
   });
 
   it('si Google falla, se reintenta solo Google: Apple no repite trabajo', async () => {
