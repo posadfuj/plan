@@ -1,0 +1,28 @@
+# Aiment Wallet en el VPS (Docker Swarm, junto a EasyPanel). Red propia: n8n y WhatsApp no la ven.
+#   Desplegar:  scripts/prod/deploy.sh   (docs/runbook.md, sección 10)
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.1
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    configs:
+      - source: cloudflared_config_v1
+        target: /etc/cloudflared/config.yml
+    secrets:
+      - aiment_tunnel_credentials
+    networks: [aiment]
+    deploy:
+      replicas: 1
+      restart_policy: { condition: any, delay: 5s }
+      resources: { limits: { memory: 128M } }
+
+networks:
+  aiment:
+    driver: overlay
+
+configs:
+  cloudflared_config_v1:
+    file: ./cloudflared.yml
+
+secrets:
+  aiment_tunnel_credentials:
+    external: true

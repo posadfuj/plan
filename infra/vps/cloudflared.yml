@@ -1,0 +1,8 @@
+# Cloudflare Tunnel "aiment-vps": Cloudflare llega a la API por adentro; el VPS no publica puertos
+# para Aiment Wallet. La credencial va como secreto de Docker (aiment_tunnel_credentials).
+tunnel: ac1372e7-177c-4f8f-a435-2c2e115e5c08
+credentials-file: /run/secrets/aiment_tunnel_credentials
+ingress:
+  - hostname: origin.aimentwallet.com
+    service: http://api:8787
+  - service: http_status:404
