@@ -21,7 +21,9 @@ Fecha: 17/10/2026 · Estado: **terminado como integración simulada**, pendiente
 | **Total tests**                         | **326**  | Antes 320 (+6)                                                                                                                                                                                                                                                                                                                              |
 | **E2E en celulares emulados**           | **32**   | Sin cambios (31 pasan + 1 omitida a propósito: Google en iPhone). Dos corridas seguidas en verde                                                                                                                                                                                                                                            |
 
-Formato, lint y tipos, en verde. CI: se informa al subir.
+Formato, lint y tipos, en verde. **CI:** verde en el [run #32](https://github.com/posadfuj/plan/actions/runs/39038715738). El run #31 había fallado en una prueba vieja del worker que esperaba un pase de la semilla exactamente en la versión 2; las pruebas nuevas, que en CI corren antes, ya lo habían sincronizado. Ahora compara contra la versión anterior (`648f866`).
+
+Corriendo la integración en **orden aleatorio** apareció otra prueba vieja, ajena a Wallet, que depende del orden: la excepción de límite con el PIN del dueño en caja, donde a veces queda auditada otra persona del negocio con el mismo PIN. En el orden normal de CI pasa. Quedó como tarea aparte.
 
 ## 3. Pendiente para la prueba real (se suma a la del Bloque 1)
 
