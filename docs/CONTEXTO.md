@@ -2,12 +2,14 @@
 
 **Aiment Wallet**: plataforma de fidelización multi-negocio (puntos y sellos, tarjeta web, QR/NFC y, más adelante, Apple/Google Wallet). Fundador: Aiment Agency / Aiment Card (Perú).
 
-## Estado al 09/10/2026
+## Estado al 17/10/2026
 
 - Rama de trabajo: `claude/loyalty-platform-technical-review-0qpg4x`.
 - **Semanas 1–5 cerradas oficialmente (09/10/2026)** tras la prueba en celulares físicos (iPhone 14 y Samsung A22 con Chrome 154): sin diferencias importantes frente a la emulación. Resultado en `docs/prueba-celulares.md`. Después de aprobar la 5 se agregó editar nombre/celular del cliente desde la ficha (#23).
-- **Semana 6 terminada (pendiente de aprobación del fundador):** reportes, CSV, automatizaciones, PDF de mostrador, hardening, vencimientos programados, runbook y E2E del flujo crítico. Reporte: `docs/semana-6-reporte.md`. Falta el túnel con nombre (requiere el dominio). Alcance congelado.
-- Pruebas: 287 tests + 30 E2E (Android e iPhone emulados, con CSP estricta en CI). Último CI verde: run #26 (semana 6 completa, con el arreglo de CSP para el lector de QR).
+- **Semana 6 aprobada (10/10/2026):** reportes, CSV, automatizaciones, PDF de mostrador, hardening, vencimientos programados, runbook y E2E del flujo crítico. Reporte: `docs/semana-6-reporte.md`.
+- **Semana 7 por bloques (el fundador aprueba cada uno).** Bloque 1 (Google Wallet en modo simulado) terminado, pendiente de la prueba real en Android y de aprobación: `docs/semana-7-bloque-1-reporte.md`. Bloque 2 (sincronización de reglas y mensajes en el pase) no empieza sin su ok.
+- Google Wallet: `GOOGLE_WALLET_MODE=auto` → simulado hasta que estén el Issuer ID, `secrets/google-wallet-sa.json` y un `PUBLIC_BASE_URL` https. Botón solo en Android (decisión del fundador); en iPhone, Apple Wallet en la semana 8.
+- Pruebas: 320 tests + 32 E2E (Android e iPhone emulados, con CSP estricta en CI). Último CI verde: run #26.
 
 ## Decisiones cerradas (no reabrir)
 
@@ -42,12 +44,12 @@
 
 ## Pendientes conocidos
 
-- **Semana 7:** Google Wallet. Requiere el dominio (túnel con nombre) y la cuenta Google Issuer del fundador.
+- **Semana 7, bloque 1:** prueba real en Android cuando el fundador pase el Issuer ID, la cuenta de servicio y los correos de prueba (el dominio no hace falta: alcanza el túnel temporal).
 - **Decididos por el fundador:** #12 shadcn/ui cerrada (no migrar si no hay mejora visible); #22 invitar admins → fase posterior, fuera del MVP; #23 editar cliente → hecha.
-- **Semana 7 también:** sincronizar los cambios de regla con los pases (deuda #4) y mostrar en el pase el mensaje automático (`automation.ran`).
+- **Semana 7, bloque 2:** sincronizar los cambios de regla con los pases (deuda #4) y mostrar en el pase el mensaje automático (`automation.ran`).
 - **Fundador:**
   - si se consigue, repetir en un Android de gama baja real (C6, C13, P8): no se pudo en la prueba física;
-  - **comprar el dominio** (bloquea el túnel con nombre y Wallet);
+  - **comprar el dominio** cuando haga falta para URLs públicas fijas (se le avisa; no bloquea el bloque 1);
   - prueba de Google Wallet en modo demo;
   - confirmar la dedicación de la desarrolladora;
   - revisión legal (casilla de consentimiento, textos).

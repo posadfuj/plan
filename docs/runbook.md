@@ -20,21 +20,22 @@ Salud: `GET /health` (API + consulta a la base). El worker escribe en su salida 
 
 La lista completa con comentarios está en [`.env.example`](../.env.example). En local no se edita a mano: `pnpm local:env` genera `.env` (que **nunca** se sube al repositorio).
 
-| Variable                                         | Para qué                                                        | Producción                                                    |
-| ------------------------------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------- |
-| `DATABASE_ADMIN_URL`                             | Migraciones y seed (dueño del esquema). **Nunca** la usa la API | Solo en el paso de despliegue                                 |
-| `DATABASE_URL`, `APP_DB_USER`, `APP_DB_PASSWORD` | API y worker: usuario miembro de `app_api`, **sin BYPASSRLS**   | Clave larga y única, en el gestor de secretos                 |
-| `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`       | Login del panel                                                 | Proyecto de Supabase                                          |
-| `SUPABASE_SECRET_KEY`                            | Invitaciones de dueños (solo servidor)                          | Secreto                                                       |
-| `SUPABASE_JWT_SECRET`                            | Solo local/legacy (HS256)                                       | Vacío: la API valida con JWKS                                 |
-| `AUTH_REQUIRE_SUPERADMIN_MFA`                    | Superadmin con TOTP                                             | `true`                                                        |
-| `PUBLIC_BASE_URL`                                | Enlaces que salen del sistema (correos, QR, PDF de mostrador)   | `https://{dominio}`                                           |
-| `TRUST_PROXY`                                    | IP real desde `X-Forwarded-For`                                 | `true` detrás de Cloudflare                                   |
-| `VISITOR_HASH_SALT`                              | Hash diario de visitantes (no se guarda la IP)                  | Aleatorio, 32+ caracteres                                     |
-| `RATE_LIMIT_*`                                   | Suben los límites por IP para probar en local                   | **Vacías** (valores por defecto, ver ADR 0003)                |
-| `MAIL_TRANSPORT`, `SMTP_*`, `MAIL_FROM`          | Correo                                                          | Proveedor transaccional por SMTP                              |
-| `STORAGE_DIR`                                    | Carpeta de logos                                                | Se reemplaza por R2 (semana 9)                                |
-| `WALLET_PROVIDER`, `GOOGLE_WALLET_*`             | Wallet (`fake` hasta las semanas 7–8)                           | `google` / `apple`; credenciales en `secrets/` (nunca en git) |
+| Variable                                                | Para qué                                                                                              | Producción                                     |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `DATABASE_ADMIN_URL`                                    | Migraciones y seed (dueño del esquema). **Nunca** la usa la API                                       | Solo en el paso de despliegue                  |
+| `DATABASE_URL`, `APP_DB_USER`, `APP_DB_PASSWORD`        | API y worker: usuario miembro de `app_api`, **sin BYPASSRLS**                                         | Clave larga y única, en el gestor de secretos  |
+| `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`              | Login del panel                                                                                       | Proyecto de Supabase                           |
+| `SUPABASE_SECRET_KEY`                                   | Invitaciones de dueños (solo servidor)                                                                | Secreto                                        |
+| `SUPABASE_JWT_SECRET`                                   | Solo local/legacy (HS256)                                                                             | Vacío: la API valida con JWKS                  |
+| `AUTH_REQUIRE_SUPERADMIN_MFA`                           | Superadmin con TOTP                                                                                   | `true`                                         |
+| `PUBLIC_BASE_URL`                                       | Enlaces que salen del sistema (correos, QR, PDF de mostrador)                                         | `https://{dominio}`                            |
+| `TRUST_PROXY`                                           | IP real desde `X-Forwarded-For`                                                                       | `true` detrás de Cloudflare                    |
+| `VISITOR_HASH_SALT`                                     | Hash diario de visitantes (no se guarda la IP)                                                        | Aleatorio, 32+ caracteres                      |
+| `RATE_LIMIT_*`                                          | Suben los límites por IP para probar en local                                                         | **Vacías** (valores por defecto, ver ADR 0003) |
+| `MAIL_TRANSPORT`, `SMTP_*`, `MAIL_FROM`                 | Correo                                                                                                | Proveedor transaccional por SMTP               |
+| `STORAGE_DIR`                                           | Carpeta de logos                                                                                      | Se reemplaza por R2 (semana 9)                 |
+| `GOOGLE_WALLET_MODE`                                    | Google Wallet: `auto` (real si hay credenciales y https; si no, simulado), `simulated`, `live`, `off` | `live` (no arranca si falta algo)              |
+| `GOOGLE_WALLET_ISSUER_ID`, `GOOGLE_WALLET_SA_JSON_PATH` | Cuenta emisora y cuenta de servicio de Google Wallet                                                  | Archivo en `secrets/` (nunca en git)           |
 
 ## 3. Migraciones
 
@@ -123,3 +124,16 @@ Respaldo de 310 KB en 0,2 s y restauración en una base nueva del mismo servidor
 | Un cliente perdió su tarjeta              | Caja o panel → QR de recuperación (un solo uso), o recuperación por correo                                          |
 | Intentos raros con el PIN del dueño       | Panel → Reportes → "PIN dueño errado" por persona; cambiar el PIN del dueño en Equipo                               |
 | Se filtró una clave                       | Rotarla en el proveedor, actualizar el gestor de secretos y redesplegar. `APP_DB_PASSWORD`: `pnpm db:roles`         |
+
+## 9. Google Wallet
+
+- **Modo** (lo muestran la API y el worker al arrancar): `Google Wallet SIMULADO (motivo)` o `Google Wallet REAL (emisor …1234, cuenta@…)`. La API y el worker usan la misma configuración; si uno dice REAL y el otro SIMULADO, revisar el `.env` de cada proceso.
+- **Pasar de simulado a real:** poner `GOOGLE_WALLET_ISSUER_ID`, guardar el JSON de la cuenta de servicio en `secrets/google-wallet-sa.json` y usar un `PUBLIC_BASE_URL` https (túnel o dominio). Con `GOOGLE_WALLET_MODE=auto` se activa solo; con `live`, si falta algo, el proceso no arranca y dice qué falta.
+- **Botón:** solo en Android. El enlace se arma en la API sin llamar a Google (JWT firmado con la clase y el objeto), así que funciona aunque la API de Google esté caída.
+- **Si Google falla:** la caja y el ledger no se enteran. El worker reintenta (cola `wallet.sync.google`, 8 intentos con espera creciente hasta 1 h). Los rechazos por datos o permisos (400/403, credenciales inválidas) **no se reintentan**: quedan en `wallet_passes.last_error`.
+  ```sql
+  select external_id, last_error, last_synced_at from app.wallet_passes
+  where provider = 'google' and last_error is not null order by updated_at desc limit 20;
+  ```
+- **Reenviar un pase:** insertar un evento `wallet.resync_requested` para la membresía (el worker manda el estado actual).
+- **Baja de un cliente:** sus pases pasan a `revoked` y el worker los deja inactivos en Google, sin nombre ni QR.
