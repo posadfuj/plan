@@ -564,7 +564,14 @@ describe('roles', () => {
       expect(byId[org.id]!.customers).toBe(real[org.id]);
       expect(byId[org.id]!.customers).toBeGreaterThanOrEqual(org.customers);
     }
-    expect(byId[A.id]!.walletPasses).toBe(5);
+    // 5 pases simulados en la semilla; otros tests (botón de Google Wallet) pueden sumar más.
+    const [passes] = (await withSystemTx(handle.db, (tx) =>
+      tx.execute(
+        sql`select count(*)::int as n from app.wallet_passes where organization_id = ${A.id} and status = 'active'`,
+      ),
+    )) as unknown as { n: number }[];
+    expect(byId[A.id]!.walletPasses).toBe(passes!.n);
+    expect(byId[A.id]!.walletPasses).toBeGreaterThanOrEqual(5);
   });
 
   it('con MFA obligatorio, el superadmin necesita aal2 (TOTP)', async () => {
