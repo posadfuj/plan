@@ -45,6 +45,8 @@ jobs:
         run: pnpm typecheck
       - name: Esquema y migraciones sincronizados
         run: pnpm db:check
+      - name: Paquete de producción (API, worker y migraciones)
+        run: node scripts/build-server.mjs
       - name: Tests unitarios (cobertura mínima 90 % en el motor)
         run: pnpm vitest run --project unit --coverage
       - name: Tests de integración (RLS, aislamiento, ledger, concurrencia, Wallet)

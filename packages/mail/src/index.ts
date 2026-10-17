@@ -1,6 +1,6 @@
 /**
  * Envío de correos transaccionales. Local: SMTP de Mailpit (Supabase local). Tests: buzón en memoria.
- * Producción (semana 9): proveedor transaccional por SMTP con las mismas variables.
+ * Producción: Resend por su API HTTPS (MAIL_TRANSPORT=resend), sin SMTP.
  */
 import { createTransport, type Mail } from 'nodemailer';
 
@@ -44,8 +44,43 @@ export class SmtpMailer implements Mailer {
   }
 }
 
+/** Resend (https://resend.com): un POST por correo. El error informa el código, nunca el destinatario. */
+export class ResendMailer implements Mailer {
+  private readonly fetchImpl: typeof fetch;
+  constructor(
+    private readonly apiKey: string,
+    private readonly from: string,
+    opts: { fetch?: typeof fetch } = {},
+  ) {
+    this.fetchImpl = opts.fetch ?? globalThis.fetch;
+  }
+  async send(message: MailMessage): Promise<void> {
+    const res = await this.fetchImpl('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${this.apiKey}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        from: this.from,
+        to: [message.to],
+        subject: message.subject,
+        text: message.text,
+        ...(message.html ? { html: message.html } : {}),
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => null)) as { name?: string; message?: string } | null;
+      throw new Error(`Resend ${res.status}${data?.name ? ` ${data.name}` : ''}`);
+    }
+  }
+}
+
 export function createMailerFromEnv(env: NodeJS.ProcessEnv = process.env): Mailer {
-  if ((env.MAIL_TRANSPORT ?? 'smtp') === 'memory') return new MemoryMailer();
+  const transport = env.MAIL_TRANSPORT ?? 'smtp';
+  if (transport === 'memory') return new MemoryMailer();
+  if (transport === 'resend') {
+    if (!env.RESEND_API_KEY) throw new Error('MAIL_TRANSPORT=resend necesita RESEND_API_KEY');
+    return new ResendMailer(env.RESEND_API_KEY, env.MAIL_FROM ?? 'Aiment Wallet <no-reply@aimentwallet.com>');
+  }
   return new SmtpMailer(
     {
       host: env.SMTP_HOST ?? '127.0.0.1',

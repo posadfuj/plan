@@ -69,6 +69,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(pg@8.23.0)(postgres@3.4.9)
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       eslint:
         specifier: ^10.11.0
         version: 10.11.0(jiti@2.7.0)
@@ -135,6 +138,9 @@ importers:
       '@aiment/mail':
         specifier: workspace:*
         version: link:../../packages/mail
+      '@aiment/ops':
+        specifier: workspace:*
+        version: link:../../packages/ops
       '@aiment/staff':
         specifier: workspace:*
         version: link:../../packages/staff
@@ -224,6 +230,12 @@ importers:
       '@aiment/ledger':
         specifier: workspace:*
         version: link:../../packages/ledger
+      '@aiment/mail':
+        specifier: workspace:*
+        version: link:../../packages/mail
+      '@aiment/ops':
+        specifier: workspace:*
+        version: link:../../packages/ops
       '@aiment/wallet':
         specifier: workspace:*
         version: link:../../packages/wallet
@@ -370,6 +382,12 @@ importers:
         specifier: ^10.0.16
         version: 10.0.16
 
+  packages/ops:
+    dependencies:
+      '@aiment/mail':
+        specifier: workspace:*
+        version: link:../mail
+
   packages/staff:
     dependencies:
       '@aiment/business':
@@ -401,7 +419,11 @@ importers:
         specifier: ^1.5.6
         version: 1.5.6
 
-  packages/storage: {}
+  packages/storage:
+    dependencies:
+      aws4fetch:
+        specifier: 1.0.20
+        version: 1.0.20
 
   packages/wallet:
     dependencies:
@@ -1472,6 +1494,9 @@ packages:
 
   ast-v8-to-istanbul@1.0.7:
     resolution: {integrity: sha512-kFL68AG6ajd8fg248zwM9GQrUWEp79gsmjum34OEXjs4yHuUMZfYKwOLW9GMmB4oNvVrj+EAGxsP7ye2UR9UlA==}
+
+  aws4fetch@1.0.20:
+    resolution: {integrity: sha512-/djoAN709iY65ETD6LKCtyyEI04XIBP5xVvfmNxsEP0uJB5tyaGBztSryRr4HqMStr9R06PisQE7m9zDTXKu6g==}
 
   balanced-match@4.0.4:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
@@ -3256,6 +3281,8 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.31
       estree-walker: 3.0.3
       js-tokens: 10.0.0
+
+  aws4fetch@1.0.20: {}
 
   balanced-match@4.0.4: {}
 

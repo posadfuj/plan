@@ -90,3 +90,4 @@ export function sniffImage(bytes: Uint8Array): ImageKind | null {
     return { ext: 'webp', contentType: 'image/webp' };
   return null;
 }
+export * from './s3';

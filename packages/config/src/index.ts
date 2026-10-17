@@ -58,9 +58,25 @@ export const walletEnvSchema = z.object({
 });
 export type WalletEnv = z.infer<typeof walletEnvSchema>;
 
+/** Avisos de operación (ver @aiment/ops): webhook (p. ej. n8n → WhatsApp) y/o correo. */
+export const opsEnvSchema = z.object({
+  ALERT_WEBHOOK_URL: z
+    .string()
+    .url()
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+  ALERT_EMAIL: z
+    .string()
+    .email()
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+});
+export type OpsEnv = z.infer<typeof opsEnvSchema>;
+
 export const apiEnvSchema = dbEnvSchema
   .extend(authEnvSchema.shape)
   .extend(walletEnvSchema.shape)
+  .extend(opsEnvSchema.shape)
   .extend({
     API_PORT: z.coerce.number().int().default(8787),
     PUBLIC_BASE_URL: z.string().url().default('http://localhost:5173'),
@@ -79,8 +95,14 @@ export const apiEnvSchema = dbEnvSchema
     RATE_LIMIT_DEVICE_PAIR: z.coerce.number().int().positive().optional(),
     /** Clave secreta de Supabase (solo servidor): invitar dueños desde el panel maestro. */
     SUPABASE_SECRET_KEY: z.string().optional(),
-    /** Carpeta de archivos (logos) en local. En producción: R2/S3 (semana 9). */
+    /** Archivos (logos): local = carpeta en disco · r2 = Cloudflare R2 (producción). */
+    STORAGE_DRIVER: z.enum(['local', 'r2']).default('local'),
+    /** Carpeta de archivos con STORAGE_DRIVER=local. */
     STORAGE_DIR: z.string().default('.data/storage'),
+    R2_ACCOUNT_ID: z.string().optional(),
+    R2_ACCESS_KEY_ID: z.string().optional(),
+    R2_SECRET_ACCESS_KEY: z.string().optional(),
+    R2_BUCKET: z.string().optional(),
   });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
