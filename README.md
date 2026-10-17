@@ -53,7 +53,7 @@ Mailpit (correos locales): http://127.0.0.1:54324
 ## Datos de prueba
 
 Todos son ficticios. Contraseña de todos los usuarios: `aiment-demo-2026` (variable `SEED_USER_PASSWORD`).
-PIN de caja de los trabajadores: `2580`. PIN de dueños y admin (autoriza excepciones en caja): `1470`.
+PIN de caja: Jhon `2580`, Mario `3691`. PIN del dueño `1470` y de la administradora `5928` (autorizan excepciones en caja). Cada persona de un negocio tiene un PIN distinto ([ADR 0005](docs/decisiones/0005-pin-unico-por-persona.md)).
 
 | Usuario                      | Rol                                                                                        |
 | ---------------------------- | ------------------------------------------------------------------------------------------ |

@@ -7,9 +7,10 @@
 - Rama de trabajo: `claude/loyalty-platform-technical-review-0qpg4x`.
 - **Semanas 1–5 cerradas oficialmente (09/10/2026)** tras la prueba en celulares físicos (iPhone 14 y Samsung A22 con Chrome 154): sin diferencias importantes frente a la emulación. Resultado en `docs/prueba-celulares.md`. Después de aprobar la 5 se agregó editar nombre/celular del cliente desde la ficha (#23).
 - **Semana 6 aprobada (10/10/2026):** reportes, CSV, automatizaciones, PDF de mostrador, hardening, vencimientos programados, runbook y E2E del flujo crítico. Reporte: `docs/semana-6-reporte.md`.
-- **Semana 7 por bloques (el fundador aprueba cada uno).** Bloque 1 (Google Wallet) **aprobado como integración simulada (17/10/2026)**; la real no está aprobada. **Pendiente obligatorio:** prueba en Android físico con credenciales reales (guardar, sumar y ver actualización, pausar/reactivar, escanear el QR desde Google Wallet), ver `docs/semana-7-bloque-1-reporte.md`. Bloque 2 (cambios de marca/programa/regla y mensajes en el pase) terminado en simulado, pendiente de aprobación: `docs/semana-7-bloque-2-reporte.md`.
+- **Semana 7 por bloques (el fundador aprueba cada uno).** Bloque 1 (Google Wallet) **aprobado como integración simulada (17/10/2026)**; la real no está aprobada. **Pendiente obligatorio:** prueba en Android físico con credenciales reales (guardar, sumar y ver actualización, pausar/reactivar, escanear el QR desde Google Wallet), ver `docs/semana-7-bloque-1-reporte.md`. Bloque 2 (cambios de marca/programa/regla, mensajes y notificación en el pase) **aprobado como integración simulada (17/10/2026)**: `docs/semana-7-bloque-2-reporte.md`. La prueba real obligatoria suma: cambiar color/logo y verlo en el pase, y recibir la notificación al completar la meta.
+- **PIN único por persona dentro de cada negocio** (ADR 0005, 17/10/2026): el PIN de excepción identifica a quién autorizó; un PIN compartido (datos viejos) no autoriza. PIN del seed: Jhon 2580, Mario 3691, dueño 1470, admin 5928.
 - Google Wallet: `GOOGLE_WALLET_MODE=auto` → simulado hasta que estén el Issuer ID, `secrets/google-wallet-sa.json` y un `PUBLIC_BASE_URL` https. Botón solo en Android (decisión del fundador); en iPhone, Apple Wallet en la semana 8.
-- Pruebas: 326 tests + 32 E2E (Android e iPhone emulados, con CSP estricta en CI). Último CI verde: run #26.
+- Pruebas: 330 tests + 32 E2E (Android e iPhone emulados, con CSP estricta en CI). Último CI verde: run #26.
 
 ## Decisiones cerradas (no reabrir)
 
@@ -46,7 +47,7 @@
 
 - **Semana 7, bloque 1:** prueba real en Android cuando el fundador pase el Issuer ID, la cuenta de servicio y los correos de prueba (el dominio no hace falta: alcanza el túnel temporal).
 - **Decididos por el fundador:** #12 shadcn/ui cerrada (no migrar si no hay mejora visible); #22 invitar admins → fase posterior, fuera del MVP; #23 editar cliente → hecha.
-- **Semana 7, bloque 2:** hecho en simulado (deuda #4 cerrada): pendiente la aprobación del fundador y verlo en la prueba real.
+- **Semana 7, bloque 2:** aprobado en simulado (deuda #4 cerrada); falta verlo en la prueba real.
 - **Fundador:**
   - si se consigue, repetir en un Android de gama baja real (C6, C13, P8): no se pudo en la prueba física;
   - **comprar el dominio** cuando haga falta para URLs públicas fijas (se le avisa; no bloquea el bloque 1);

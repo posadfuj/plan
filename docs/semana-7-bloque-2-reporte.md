@@ -2,6 +2,8 @@
 
 Fecha: 17/10/2026 · Estado: **terminado como integración simulada**, pendiente de tu aprobación. Como en el Bloque 1, lo real se confirma en la prueba con tus credenciales y un Android físico.
 
+> **Aprobado por el fundador el 17/10/2026 como integración simulada.** Deuda #4 cerrada. Los dos puntos de la sección 3 se suman a la prueba real obligatoria del Bloque 1.
+
 ## 1. Qué quedó implementado
 
 | Pieza                               | Qué hace                                                                                                                                                                                                                                                                                                                          |
@@ -23,7 +25,7 @@ Fecha: 17/10/2026 · Estado: **terminado como integración simulada**, pendiente
 
 Formato, lint y tipos, en verde. **CI:** verde en el [run #32](https://github.com/posadfuj/plan/actions/runs/39038715738). El run #31 había fallado en una prueba vieja del worker que esperaba un pase de la semilla exactamente en la versión 2; las pruebas nuevas, que en CI corren antes, ya lo habían sincronizado. Ahora compara contra la versión anterior (`648f866`).
 
-Corriendo la integración en **orden aleatorio** apareció otra prueba vieja, ajena a Wallet, que depende del orden: la excepción de límite con el PIN del dueño en caja, donde a veces queda auditada otra persona del negocio con el mismo PIN. En el orden normal de CI pasa. Quedó como tarea aparte.
+Corriendo la integración en **orden aleatorio** apareció otra prueba vieja, ajena a Wallet, que depende del orden: la excepción de límite con el PIN del dueño en caja, donde a veces queda auditada otra persona del negocio con el mismo PIN. En el orden normal de CI pasa. Revisado y corregido aparte: ver [ADR 0005](./decisiones/0005-pin-unico-por-persona.md).
 
 ## 3. Pendiente para la prueba real (se suma a la del Bloque 1)
 

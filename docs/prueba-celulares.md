@@ -35,7 +35,7 @@ pnpm local:tunnel       # abre un túnel HTTPS y muestra un QR en la terminal
 - Si `pnpm dev` está corriendo, detenlo antes: el túnel levanta la API y la PWA por su cuenta.
 - Los correos de recuperación llegan a Mailpit: <http://127.0.0.1:54324>.
 - Credenciales del panel (datos de prueba): `dueno.barberia@aiment.test` / `aiment-demo-2026`. Panel maestro: `superadmin@aiment.test` (misma contraseña).
-- PIN de caja de los trabajadores del seed (Jhon, Mario): `2580`. PIN del dueño (autoriza excepciones): `1470`.
+- PIN de caja del seed: Jhon `2580`, Mario `3691` (cada persona tiene uno distinto desde el 17/10/2026). PIN del dueño (autoriza excepciones): `1470`.
 - Necesitas **dos teléfonos**: uno hace de cliente y otro de caja (idealmente un Android de gama media como caja).
 
 ## Checklist
@@ -65,7 +65,7 @@ Anota por cada teléfono: marca, modelo, gama, sistema y navegador.
 | C2  | Panel del dueño → Cajas → nombre del dispositivo → **Generar QR**; escanearlo con el celular de caja | "Quedó autorizado"; aparece "¿Quién atiende?"                                |        |               |              |
 | C3  | Escanear el **mismo** QR con otro teléfono                                                           | "Este QR de autorización ya no es válido"                                    |        |               |              |
 | C4  | Elegir "Jhon (caja)" y escribir un PIN equivocado 5 veces                                            | Avisa los intentos restantes y al 5.º bloquea 15 minutos                     |        |               |              |
-| C5  | Entrar con "Mario (caja)" y PIN `2580`                                                               | Pantalla con **ESCANEAR CLIENTE** grande                                     |        |               |              |
+| C5  | Entrar con "Mario (caja)" y PIN `3691`                                                               | Pantalla con **ESCANEAR CLIENTE** grande                                     |        |               |              |
 | C6  | **ESCANEAR CLIENTE** y apuntar a la tarjeta del teléfono cliente (probar con poca luz y brillo bajo) | Pide permiso de cámara la 1.ª vez; abre la ficha del cliente en menos de 3 s |        |               |              |
 | C7  | **SUMAR VISITA**                                                                                     | "+1 sello"; al volver a la tarjeta del cliente se ve el sello                |        |               |              |
 | C8  | Sumar otra vez                                                                                       | "Este cliente ya sumó hace poco" → motivo + PIN del dueño `1470` → se suma   |        |               |              |
