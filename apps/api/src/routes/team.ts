@@ -14,7 +14,9 @@ import { Hono, type Context } from 'hono';
 import { isUuid, requireOrgMember, requirePermission, requireUser } from '../auth/middleware';
 import type { AppEnv } from '../context';
 import { HttpError, notFound } from '../errors';
-import { jsonBody } from '../request';
+import { jsonBody, limit } from '../request';
+
+const HOUR = 60 * 60_000;
 
 function manager(c: Context<AppEnv>): Manager {
   const actor = c.var.actor;
@@ -38,6 +40,7 @@ export const teamRoutes = new Hono<AppEnv>()
   })
 
   .post('/team', requirePermission('team.manage_staff'), async (c) => {
+    limit(c, 'pinChange', HOUR, manager(c).orgUserId);
     const b = await jsonBody(c);
     const person = await createStaffMember(c.var.deps.db, c.var.orgId, manager(c), {
       name: b.name,
@@ -50,6 +53,7 @@ export const teamRoutes = new Hono<AppEnv>()
   // Cada quien cambia su PIN; el de un trabajador de caja lo cambia también quien gestiona el equipo.
   .post('/team/:orgUserId/pin', requirePermission('org.read'), async (c) => {
     const target = uuidParam(c, 'orgUserId');
+    limit(c, 'pinChange', HOUR, manager(c).orgUserId);
     const b = await jsonBody(c);
     const actor = c.var.actor;
     await setPin(

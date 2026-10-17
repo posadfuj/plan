@@ -269,7 +269,7 @@ async function seedOrg(tx: Tx, key: SeedOrgKey) {
     .insert(s.branches)
     .values({ id: o.branchId, organizationId: o.id, name: 'Sede principal', address: 'Lima, Perú' });
 
-  const staffPin = await argon2Hash(SEED.pins.staff);
+  const staffPins = [await argon2Hash(SEED.pins.staff), await argon2Hash(SEED.pins.staff2)];
   const ownerPin = await argon2Hash(SEED.pins.owner);
   const team: (typeof s.organizationUsers.$inferInsert)[] = [
     {
@@ -280,12 +280,12 @@ async function seedOrg(tx: Tx, key: SeedOrgKey) {
       role: 'owner',
       pinHash: ownerPin,
     },
-    ...o.staff.map((st) => ({
+    ...o.staff.map((st, i) => ({
       id: st.orgUserId,
       organizationId: o.id,
       displayName: st.name,
       role: 'staff' as const,
-      pinHash: staffPin,
+      pinHash: staffPins[i] ?? null, // un PIN distinto por persona
     })),
   ];
   if (o.admin)
@@ -295,7 +295,7 @@ async function seedOrg(tx: Tx, key: SeedOrgKey) {
       userId: o.admin.id,
       displayName: o.admin.name,
       role: 'admin',
-      pinHash: ownerPin,
+      pinHash: await argon2Hash(SEED.pins.admin),
     });
   await tx.insert(s.organizationUsers).values(team);
 

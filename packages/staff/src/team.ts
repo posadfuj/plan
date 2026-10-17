@@ -9,7 +9,39 @@ import type { Manager } from './devices';
 import { StaffError, notFound } from './errors';
 import { assertValidPin, hashPin, verifyPin } from './pin';
 
-const { organizationUsers, staffSessions, workerDevices, auditLogs } = schema;
+const { organizations, organizationUsers, staffSessions, workerDevices, auditLogs } = schema;
+
+/**
+ * Cada persona del negocio tiene un PIN distinto: el PIN de excepción en caja identifica a QUIÉN
+ * autorizó, y la auditoría no puede quedar a nombre de otra persona. Se compara contra todas las
+ * personas con PIN (también las dadas de baja: al reactivarlas no puede aparecer un duplicado).
+ * Bloquea el negocio mientras dura la transacción: dos cambios simultáneos no pueden coincidir.
+ * Los PIN se guardan con sal (argon2id): la única forma de compararlos es verificar uno por uno.
+ */
+async function assertPinFree(tx: Tx, orgId: string, pin: string, exceptId: string | null) {
+  await tx
+    .select({ id: organizations.id })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .for('update');
+  const others = await tx
+    .select({ pinHash: organizationUsers.pinHash })
+    .from(organizationUsers)
+    .where(
+      and(
+        eq(organizationUsers.organizationId, orgId),
+        isNotNull(organizationUsers.pinHash),
+        exceptId ? ne(organizationUsers.id, exceptId) : undefined,
+      ),
+    );
+  for (const o of others)
+    if (await verifyPin(o.pinHash, pin))
+      throw new StaffError(
+        409,
+        'pin_in_use',
+        'Ese PIN ya lo usa otra persona del negocio. Elige otro: cada persona necesita uno distinto para saber quién autorizó cada operación.',
+      );
+}
 
 export async function listTeam(db: Db, orgId: string) {
   const rows = await withTenantTx(db, orgId, (tx) =>
@@ -188,6 +220,7 @@ export async function createStaffMember(
     await assertWithinPlan(tx, orgId, 'staff');
     await assertBranchIds(tx, orgId, branchIds);
     await assertNameFree(tx, orgId, name);
+    await assertPinFree(tx, orgId, input.pin as string, null);
     const [row] = await tx
       .insert(organizationUsers)
       .values({ organizationId: orgId, displayName: name, role: 'staff', pinHash, branchIds })
@@ -237,6 +270,7 @@ export async function setPin(
     const self = target.id === manager.orgUserId;
     if (!self && !(target.role === 'staff' && manager.canManageStaff))
       throw new StaffError(403, 'forbidden', 'Solo puedes cambiar tu PIN o el de los trabajadores de caja');
+    await assertPinFree(tx, orgId, pin, target.id);
     await tx
       .update(organizationUsers)
       .set({ pinHash, pinFailedAttempts: 0, pinLockedUntil: null })
@@ -293,11 +327,16 @@ export async function deactivateStaffMember(db: Db, orgId: string, manager: Mana
  * PIN del dueño o de un admin para autorizar en caja una excepción de límites.
  * Devuelve quién la autorizó, o null si el PIN no corresponde a nadie con ese permiso.
  */
+/**
+ * PIN de excepción en caja: devuelve quién autoriza (dueño o admin). Si el PIN coincide con más
+ * de una persona (datos de antes de exigir PIN único), devuelve 'ambiguous' y NO autoriza: la
+ * auditoría nunca puede adivinar quién fue.
+ */
 export async function verifyOverridePin(
   db: Db,
   orgId: string,
   pin: unknown,
-): Promise<{ orgUserId: string; name: string } | null> {
+): Promise<{ orgUserId: string; name: string } | 'ambiguous' | null> {
   if (typeof pin !== 'string' || !/^\d{4,6}$/.test(pin)) return null;
   const approvers = await withTenantTx(db, orgId, (tx) =>
     tx
@@ -316,8 +355,11 @@ export async function verifyOverridePin(
         ),
       ),
   );
-  for (const a of approvers) if (await verifyPin(a.pinHash, pin)) return { orgUserId: a.id, name: a.name };
-  return null;
+  const matches: { orgUserId: string; name: string }[] = [];
+  for (const a of approvers)
+    if (await verifyPin(a.pinHash, pin)) matches.push({ orgUserId: a.id, name: a.name });
+  if (matches.length > 1) return 'ambiguous';
+  return matches[0] ?? null;
 }
 
 /**

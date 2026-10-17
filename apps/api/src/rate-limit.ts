@@ -38,6 +38,11 @@ export interface RateLimits {
   export: number;
   /** Enlaces "Agregar a Wallet" por tarjeta cada 10 minutos (cada uno firma un JWT). */
   walletLink: number;
+  /**
+   * Altas y cambios de PIN por persona del panel cada hora. Como el PIN es único en el negocio,
+   * la respuesta "ya lo usa otra persona" no debe servir para adivinar PIN ajenos probando.
+   */
+  pinChange: number;
 }
 
 export const DEFAULT_RATE_LIMITS: RateLimits = {
@@ -54,6 +59,7 @@ export const DEFAULT_RATE_LIMITS: RateLimits = {
   staffOverrideOrg: 20,
   export: 20,
   walletLink: 20,
+  pinChange: 20,
 };
 
 export class RateLimiter {

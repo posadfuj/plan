@@ -67,7 +67,7 @@ console.log(`  Mensajes automáticos:          ${base}/panel/programa   (al fina
 console.log(`  PDF de mostrador:              ${base}/panel/sucursales`);
 console.log(`  Plan Start (sin automatizac.): ${base}/panel   (dueno.vet@aiment.test / ${pw})`);
 console.log(
-  `  Caja:                          ${base}/caja    (autorízala en Panel → Cajas; PIN caja 2580, dueño 1470)`,
+  `  Caja:                          ${base}/caja    (autorízala en Panel → Cajas; PIN Jhon 2580, Mario 3691, dueño 1470)`,
 );
 console.log('  En tu celular:                 pnpm local:tunnel\n');
 process.exit(result.status ?? 1);

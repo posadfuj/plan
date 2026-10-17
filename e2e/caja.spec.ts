@@ -23,7 +23,8 @@ import {
 } from './helpers';
 
 const LINK = 'BRB2K'; // Barbería Pedro
-const STAFF_PIN = '2580'; // PIN de los trabajadores del seed
+const STAFF_PIN = '2580'; // PIN de Jhon (caja) en el seed
+const STAFF2_PIN = '3691'; // PIN de Mario (caja): cada persona del negocio tiene uno distinto
 const OWNER_PIN = '1470'; // PIN del dueño del seed
 
 const shot = (page: Page, name: string) =>
@@ -235,7 +236,7 @@ test('meta completa → premio → canje en caja; la tarjeta del cliente lo acom
   try {
     await caja.goto(`/caja/vincular/${await pairingCodeFromDb('barberia', 'Caja premios')}`);
     await caja.getByRole('button', { name: 'Mario (caja)' }).click();
-    for (const d of STAFF_PIN) await caja.getByRole('button', { name: d, exact: true }).click();
+    for (const d of STAFF2_PIN) await caja.getByRole('button', { name: d, exact: true }).click();
     await caja.getByRole('button', { name: 'Entrar' }).click();
     await caja.getByRole('button', { name: /ESCANEAR CLIENTE/ }).click();
     await expect(caja.getByTestId('customer-name')).toHaveText('Paola Premio', { timeout: 15_000 });
@@ -278,7 +279,7 @@ test('sin internet la caja avisa y, al volver la señal, no duplica la suma', as
     const code = await pairingCodeFromDb('barberia', `Caja sin señal ${test.info().project.name}`);
     await caja.goto(`/caja/vincular/${code}`);
     await caja.getByRole('button', { name: 'Mario (caja)' }).click();
-    for (const d of STAFF_PIN) await caja.getByRole('button', { name: d, exact: true }).click();
+    for (const d of STAFF2_PIN) await caja.getByRole('button', { name: d, exact: true }).click();
     await caja.getByRole('button', { name: 'Entrar' }).click();
     await caja.getByPlaceholder('987 654 321 o ABC234').fill(shortCode);
     await caja.getByRole('button', { name: 'Buscar' }).click();

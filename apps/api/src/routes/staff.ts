@@ -215,6 +215,14 @@ export const staffRoutes = new Hono<AppEnv>()
         limit(c, 'staffOverride', 15 * 60_000, c.var.device.deviceId);
         overrideNotBlocked(c);
         const approver = await verifyOverridePin(c.var.deps.db, c.var.orgId, b.override.pin);
+        if (approver === 'ambiguous') {
+          await recordOverrideFailure(c, operator);
+          throw new HttpError(
+            409,
+            'pin_ambiguous',
+            'Ese PIN lo tienen varias personas del negocio. El dueño debe darle a cada una un PIN distinto en el panel (Equipo).',
+          );
+        }
         if (!approver) {
           await recordOverrideFailure(c, operator);
           throw new HttpError(403, 'invalid_override_pin', 'PIN del dueño o del administrador incorrecto');

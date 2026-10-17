@@ -428,10 +428,12 @@ describe('sucursales y límites del plan', () => {
     const s = await req('GET', `/v1/orgs/${C.id}/settings`, { user: C.owner.id });
     const free = s.json.limits.staff - s.json.usage.staff;
     const created: string[] = [];
+    // Un PIN distinto por persona (regla del negocio).
+    const pins = ['4826', '5937', '6148', '7253', '8364'];
     for (let i = 0; i < free; i++) {
       const r = await req('POST', `/v1/orgs/${C.id}/team`, {
         user: C.owner.id,
-        body: { name: `Tope ${randomInt(1e6)}`, pin: '4826' },
+        body: { name: `Tope ${randomInt(1e6)}`, pin: pins[i] },
       });
       expect(r.status).toBe(201);
       created.push(r.json.person.id);
@@ -447,7 +449,7 @@ describe('sucursales y límites del plan', () => {
       (
         await req('POST', `/v1/orgs/${C.id}/team`, {
           user: C.owner.id,
-          body: { name: 'Uno Más', pin: '4826' },
+          body: { name: 'Uno Más', pin: '9471' },
         })
       ).status,
     ).toBe(201);

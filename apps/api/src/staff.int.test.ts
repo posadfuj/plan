@@ -346,7 +346,7 @@ describe('turno con PIN', () => {
     const { device } = await pairDevice(A);
     await login(device, A.staff[0].orgUserId, PIN.staff);
     const first = device.cookies.get('aw_shift')!;
-    await login(device, A.staff[1].orgUserId, PIN.staff);
+    await login(device, A.staff[1].orgUserId, PIN.staff2);
     const stale = new Browser();
     stale.cookies.set('aw_device', device.cookies.get('aw_device')!);
     stale.cookies.set('aw_shift', first);
@@ -423,6 +423,74 @@ describe('equipo desde el panel', () => {
     const team = await owner.req('GET', `/v1/orgs/${A.id}/team`, { user: A.owner.id });
     expect(team.json.team.find((p: any) => p.isMe)).toMatchObject({ id: A.owner.orgUserId, hasPin: true });
     expect(JSON.stringify(team.json)).not.toMatch(/argon2|pinHash/);
+  });
+
+  it('cada persona del negocio tiene un PIN distinto (también contra quien está de baja); en otro negocio no choca', async () => {
+    const team = (body: unknown, user = A.owner.id) =>
+      owner.req('POST', `/v1/orgs/${A.id}/team`, { user, body });
+    const used = await team({ name: `Repetido ${randomInt(1e6)}`, pin: PIN.owner });
+    expect([used.status, used.json.error.code]).toEqual([409, 'pin_in_use']);
+    expect(used.json.error.message).not.toMatch(/Pedro|dueño|Lucía/); // no dice de quién es
+
+    const change = await owner.req('POST', `/v1/orgs/${A.id}/team/${A.staff[0].orgUserId}/pin`, {
+      user: A.owner.id,
+      body: { pin: PIN.staff2 },
+    });
+    expect([change.status, change.json.error.code]).toEqual([409, 'pin_in_use']);
+    expect((await login((await pairDevice(A)).device, A.staff[0].orgUserId, PIN.staff)).status).toBe(201); // no cambió
+
+    // Repetir el propio PIN no choca consigo mismo.
+    const self = await owner.req('POST', `/v1/orgs/${A.id}/team/${A.owner.orgUserId}/pin`, {
+      user: A.owner.id,
+      body: { pin: PIN.owner },
+    });
+    expect(self.status).toBe(200);
+
+    // Alguien dado de baja conserva su PIN: no se reasigna (al reactivarlo no habría duplicado).
+    const temp = await team({ name: `Temporal ${randomInt(1e6)}`, pin: '6182' });
+    await owner.req('POST', `/v1/orgs/${A.id}/team/${temp.json.person.id}/deactivate`, { user: A.owner.id });
+    expect((await team({ name: `Otro ${randomInt(1e6)}`, pin: '6182' })).status).toBe(409);
+
+    // Otro negocio puede usar el mismo número: la regla es dentro de cada negocio.
+    const inB = await owner.req('POST', `/v1/orgs/${B.id}/team`, {
+      user: B.owner.id,
+      body: { name: `Nuevo ${randomInt(1e6)}`, pin: '6182' },
+    });
+    expect(inB.status).toBe(201);
+  });
+
+  it('dos altas a la vez con el mismo PIN: solo una pasa', async () => {
+    const pin = '7493';
+    const results = await Promise.all(
+      [1, 2].map((i) =>
+        owner.req('POST', `/v1/orgs/${A.id}/team`, {
+          user: A.owner.id,
+          body: { name: `Simultáneo ${i} ${randomInt(1e6)}`, pin },
+        }),
+      ),
+    );
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+  });
+
+  it('cambiar PIN tiene tope por persona: "ya lo usa otra persona" no sirve para adivinar PIN ajenos', async () => {
+    const strict = createApp({
+      db: handle.db,
+      verifier: createSupabaseVerifier({ supabaseUrl: SUPABASE_URL, jwtSecret: JWT_SECRET }),
+      config: { requireSuperadminMfa: false, trustProxy: true, rateLimits: { pinChange: 3 } },
+    });
+    const attempt = (pin: string) =>
+      owner.req('POST', `/v1/orgs/${A.id}/team/${A.admin.orgUserId}/pin`, {
+        user: A.admin.id,
+        body: { pin },
+        target: strict,
+      });
+    for (const pin of ['2581', '2582', '2583']) expect((await attempt(pin)).status).not.toBe(429);
+    expect((await attempt('2584')).status).toBe(429);
+    // Deja el PIN del admin de la semilla como estaba.
+    await owner.req('POST', `/v1/orgs/${A.id}/team/${A.admin.orgUserId}/pin`, {
+      user: A.admin.id,
+      body: { pin: PIN.admin },
+    });
   });
 
   it('el admin cambia el PIN de un trabajador, pero no el del dueño', async () => {
@@ -585,6 +653,36 @@ describe('operaciones de caja (sellos)', () => {
       body: { reason: 'Error de caja' },
     });
     expect([denied.status, denied.json.error.code]).toEqual([409, 'void_not_own']);
+  });
+
+  it('PIN compartido por dos personas que autorizan (datos viejos): no autoriza ni adivina quién fue', async () => {
+    const hashOf = async (id: string) =>
+      (
+        await withSystemTx(handle.db, (tx) =>
+          tx
+            .select({ h: schema.organizationUsers.pinHash })
+            .from(schema.organizationUsers)
+            .where(eq(schema.organizationUsers.id, id)),
+        )
+      )[0]!.h;
+    const setHash = (id: string, h: string | null) =>
+      withSystemTx(handle.db, (tx) =>
+        tx.update(schema.organizationUsers).set({ pinHash: h }).where(eq(schema.organizationUsers.id, id)),
+      );
+    const adminHash = await hashOf(A.admin.orgUserId);
+    await setHash(A.admin.orgUserId, await hashOf(A.owner.orgUserId)); // como antes de la regla
+    try {
+      const c = await newCustomer();
+      await device.req('POST', `/v1/staff/memberships/${c.membershipId}/earn`, { body: {} });
+      const r = await device.req('POST', `/v1/staff/memberships/${c.membershipId}/earn`, {
+        body: { override: { reason: 'Vino dos veces hoy', pin: PIN.owner } },
+      });
+      expect([r.status, r.json.error.code]).toEqual([409, 'pin_ambiguous']);
+      const state = await device.req('GET', `/v1/staff/memberships/${c.membershipId}`);
+      expect(state.json.balance).toBe(1); // la segunda suma no se registró
+    } finally {
+      await setHash(A.admin.orgUserId, adminHash);
+    }
   });
 
   it('el dueño en caja (con su PIN) anula cualquier movimiento y no necesita autorización extra', async () => {
@@ -758,7 +856,7 @@ describe('aislamiento: un dispositivo solo opera su propio negocio', () => {
     const one = (await pairDevice(A, 'Caja 1')).device;
     const two = (await pairDevice(A, 'Caja 2')).device;
     await login(one, A.staff[0].orgUserId, PIN.staff);
-    await login(two, A.staff[1].orgUserId, PIN.staff);
+    await login(two, A.staff[1].orgUserId, PIN.staff2);
     const c = await newCustomer();
     await one.req('POST', `/v1/staff/memberships/${c.membershipId}/earn`, { body: {} }); // queda en cooldown
     const tryPin = (d: Browser, pin: string) =>
