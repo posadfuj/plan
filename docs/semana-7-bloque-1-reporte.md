@@ -1,6 +1,6 @@
 # Semana 7 · Bloque 1: Google Wallet (modo simulado)
 
-Fecha: 17/10/2026 · Estado: **terminado en modo simulado**. Falta la prueba real en Android, que necesita tus credenciales de Google. Después de esa prueba se aprueba el bloque y se pasa al Bloque 2.
+Fecha: 17/10/2026 · Estado: **terminado como integración simulada** (no es la integración real). CI verde en el [run #29](https://github.com/posadfuj/plan/actions/runs/39036634627). Falta la prueba real en Android, que necesita tus credenciales de Google. Después de esa prueba se aprueba el bloque y se pasa al Bloque 2.
 
 ## 1. Qué quedó implementado
 
@@ -32,7 +32,17 @@ El proveedor es el **mismo código** en simulado y en real. Lo único que cambia
 | **Total tests**                    | **320**  | Antes 287 (+33)                                                                                                                                                                                                                                                                                                         |
 | **E2E en celulares emulados**      | **32**   | Antes 30. Android: botón → pase simulado con marca, saldo, nombre y el mismo QR de caja. iPhone: solo Apple "Próximamente", sin botón de Google. La prueba de Google se omite en iPhone a propósito (31 pasan + 1 omitida)                                                                                              |
 
-Corrido localmente contra el build de producción con la CSP puesta, igual que en CI. Las pruebas en celulares pasaron dos veces seguidas después de `db:reset`. Formato, lint y tipos, en verde.
+**CI:** verde en el [run #29](https://github.com/posadfuj/plan/actions/runs/39036634627) (lint, tipos, tests unitarios y de integración, E2E y escaneo de secretos). El run #28 había fallado en una prueba vieja del panel maestro que contaba exactamente 5 pases en la Barbería; las pruebas nuevas agregan pases y en CI corren antes. Ahora compara contra la base (`a2ff61b`). En local también pasó, contra el build de producción con la CSP puesta; las pruebas en celulares, dos veces seguidas después de `db:reset`.
+
+### Validado en Android (emulado: Pixel 7 en Chromium, con la CSP de producción)
+
+- La tarjeta muestra "Agregar a Google Wallet" y no muestra Apple Wallet.
+- Al tocarlo se abre el pase simulado con la marca (Barbería Pedro), el programa, "0 de 10 sellos", el nombre corto y **el mismo token de caja** que el QR de la tarjeta web (leído desde la pantalla, como una cámara).
+- El pase viaja después del `#` de la URL: no llega a ningún servidor.
+- "Volver a mi tarjeta" regresa a la tarjeta web.
+- En el iPhone emulado no aparece el botón de Google; solo Apple "Próximamente".
+
+**No validado todavía:** un Android físico con Google Wallet. Que el pase cambie después de operar en caja se probó en la integración (worker + base), no en un celular.
 
 ## 3. Pendiente solo por las credenciales reales
 
@@ -47,21 +57,33 @@ Corrido localmente contra el build de producción con la CSP puesta, igual que e
    - que Google descargue el logo por el túnel;
    - la marca de "prueba" del modo demo (es lo esperado).
 
-## 4. Fuera de este bloque (Bloque 2 o después)
+## 4. Deudas y riesgos
 
-- Si el dueño cambia la regla, la meta, el color o el logo, actualizar la clase y todos los pases (deuda #4).
+| #   | Riesgo o deuda                                                                                                                                                           | Impacto                                                              | Cuándo                                        |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- | --------------------------------------------- |
+| 1   | Nada se probó contra Google real: OAuth, el largo del enlace (~2 KB), el texto en lugar del QR (`TEXT_ONLY`), la descarga del logo                                       | Puede requerir ajustes chicos en la prueba real                      | Prueba real                                   |
+| 2   | Si Google está caído más de lo que cubren los 8 reintentos (~5 horas), ese pase queda atrasado hasta la siguiente operación del cliente. No hay reconciliación periódica | Saldo desactualizado en el pase; la caja y la tarjeta web están bien | Bloque 2 o semana 9 (resincronización diaria) |
+| 3   | Si el dueño cambia el nombre del programa, el color o el logo, los pases ya guardados no se enteran (deuda #4)                                                           | Marca desactualizada en el pase                                      | Bloque 2                                      |
+| 4   | El botón es propio, no el oficial de Google                                                                                                                              | Google puede pedir el oficial al publicar el emisor                  | Antes de pedir la publicación                 |
+| 5   | En simulado, el "Google" del worker vive en memoria: al reiniciar el worker se pierde y los pases se recrean en la siguiente operación                                   | Solo en desarrollo                                                   | —                                             |
+| 6   | El límite de 20 enlaces por tarjeta vive en memoria (como los demás límites)                                                                                             | Con varias instancias, el límite se multiplica                       | Semana 9                                      |
+| 7   | Tu `.env` local todavía tiene `WALLET_PROVIDER=fake`, que ya no se usa                                                                                                   | Ninguno; se puede borrar                                             | —                                             |
+
+## 5. Fuera de este bloque (Bloque 2 o después)
+
+- Si el dueño cambia la regla, la meta, el color o el logo, actualizar la clase y todos los pases (deuda #4, riesgo 3).
 - Mostrar en el pase el mensaje automático, con notificación al cumplir la meta.
 - Imagen con los sellos dibujados (necesita alojar imágenes públicas: túnel con nombre o R2).
 - Botón oficial de Google ("Add to Google Wallet"), que se pide al solicitar la publicación del emisor.
 
-## 5. Decisiones que necesito de ti
+## 6. Decisiones que necesito de ti
 
 Ninguna bloqueante. Solo confirmar dos cosas:
 
 - **En computadora no aparece ningún botón de Wallet**, solo el texto "Abre esta tarjeta en tu celular para guardarla en tu Wallet". Lo apliqué siguiendo "Google solo en Android".
 - **En la vista previa del panel** el dueño sigue viendo los dos botones como "Próximamente", para que sepa qué verán sus clientes en cada celular.
 
-## 6. Dónde está el código
+## 7. Dónde está el código
 
 - `packages/wallet/src/google/`: contenido del pase (`payload.ts`), API real y simulada (`api.ts`, `simulated.ts`), proveedor (`provider.ts`) y configuración (`config.ts`).
 - `packages/wallet/src/passes.ts`: enlace del botón, un pase por cliente.
